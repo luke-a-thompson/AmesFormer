@@ -24,31 +24,38 @@ class EdgeEncoding(nn.Module):
     def forward(self, data: ModelData) -> ModelData:
         """
         :param data.edge_embedding: edge feature matrix, shape (batch_size, num_edges, edge_dim)
-        :param data.edge_paths: pairwise node paths in edge indexes, shape (batch_size, num_nodes, num_nodes, path of edge indexes to traverse from node_i to node_j where len(edge_paths) = max_path_length)
+        :param data.edge_paths: pairwise node paths in edge indexes, shape (batch_size, num_nodes, num_nodes, max_path_length)
         :return: torch.Tensor, Edge Encoding
         """
         batch_size = data.edge_paths.shape[0]
-        edge_mask = data.edge_paths == -1
-        edge_paths_clamped = data.edge_paths.clamp(min=0)
-        batch_indices = torch.arange(batch_size).view(batch_size, 1, 1, 1).expand_as(data.edge_paths)
+        max_index = data.edge_embedding.shape[1] - 1  # Maximum valid index
 
-        # Get the edge embeddings for each edge in the paths (when defined)
+        # Create a mask for invalid indices (less than 0 or greater than max_index)
+        invalid_indices_mask = (data.edge_paths < 0) | (data.edge_paths > max_index)
+
+        # Replace invalid indices with 0 to prevent indexing errors
+        edge_paths_safe = data.edge_paths.clone()
+        edge_paths_safe[invalid_indices_mask] = 0
+
+        # Prepare batch indices for indexing
+        batch_indices = torch.arange(batch_size, device=data.edge_paths.device).view(batch_size, 1, 1, 1).expand_as(data.edge_paths)
+
+        # Get the edge embeddings for each edge in the paths
         assert data.edge_embedding is not None
-        edge_path_embeddings = data.edge_embedding[batch_indices, edge_paths_clamped, :]
-        edge_path_embeddings[edge_mask] = 0.0
+        edge_path_embeddings = data.edge_embedding[batch_indices, edge_paths_safe, :]
 
-        path_lengths = (~edge_mask).sum(dim=-1) + self.eps
+        # Zero out embeddings corresponding to invalid indices
+        edge_path_embeddings[invalid_indices_mask] = 0.0
 
-        # Get sum of embeddings * self.edge_vector for edge in the path,
-        # then sum the result for each path
-        # b: batch_size
-        # n, m: padded num_nodes
-        # l: max_path_length
-        # d: edge_emb_dim
-        # (batch_size, padded_num_nodes**2)
+        # Compute the path lengths (number of valid edges in the path)
+        path_lengths = (~invalid_indices_mask).sum(dim=-1).float() + self.eps  # Convert to float for division
+
+        # Compute the edge path encoding
+        # edge_path_embeddings: (batch_size, num_nodes, num_nodes, max_path_length, edge_dim)
+        # self.edge_vector: (max_path_length, edge_dim)
         edge_path_encoding = torch.einsum("bnmld,ld->bnm", edge_path_embeddings, self.edge_vector)
 
-        # Find the mean embedding based on the path lengths
-        # shape: (batch_size, padded_num_node_pairs)
+        # Compute the mean embedding based on path lengths
         data.edge_encoding = edge_path_encoding.div(path_lengths)
+
         return data

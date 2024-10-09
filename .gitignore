@@ -1,5 +1,4 @@
 # Pretrained models
-pretrained_models/
 pyrightconfig.json
 
 **/**/runs/
@@ -167,9 +166,6 @@ cython_debug/
 .idea/
 
 # Datasets and checkpoints
-**/**/*.pt
-**/**/*.xlsx
-**/**/*.csv
 /hparams/*
 *.sqlite3
 **/**/*.pkl

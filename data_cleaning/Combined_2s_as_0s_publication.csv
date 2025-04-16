@@ -4079,7 +4079,6 @@ CC(C)Cc1ccc(C(C)C(=O)O)cc1,0.0,isssty,Train/Validation
 OCCOc1cc(Cl)c(Cl)cc1Cl,0.0,isssty,Train/Validation
 [Cl-].[Cl-].[Hg+2],0.0,isssty,Train/Validation
 C[Si](C)(C)Cl,0.0,isssty,Train/Validation
-Nc1cc(S(=O)(=O)[O-])cc2c1C1=O->[Cu]Oc3cc(-c4ccc5c(c4)O[Cu]<-O=C4/C(=N\N5)C(S(=O)(=O)[O-])=Cc5cc(S(=O)(=O)[O-])cc(N)c54)ccc3N/N=C\1C(S(=O)(=O)[O-])=C2.[Na+].[Na+].[Na+].[Na+],0.0,isssty,Train/Validation
 C[Si](C)(Cl)Cl,0.0,isssty,Train/Validation
 CC(C)(C#N)/N=N/C(C)(C)C#N,0.0,isssty,Train/Validation
 CCSCCC(N)C(=O)O,0.0,isssty,Train/Validation
@@ -4284,7 +4283,6 @@ NCCO,0.0,isssty,Train/Validation
 CCN(Cc1ccccc1)c1ccccc1,0.0,isssty,Train/Validation
 CC(C)[N+](C)(CCOC(=O)C1c2ccccc2Oc2ccccc21)C(C)C.[Br-],0.0,isssty,Train/Validation
 O=[N+]([O-])c1ccc(Oc2ccc(N=C=S)cc2)cc1,1.0,isssty,Train/Validation
-[O-][n+]1ccccc1[S-]->[Zn+2]<-[S-]c1cccc[n+]1[O-],0.0,isssty,Train/Validation
 OCC(CO)(CO)CO,0.0,isssty,Train/Validation
 NC(=O)c1ccccc1O,0.0,isssty,Train/Validation
 O=[N+]([O-])c1ccc(Cl)cc1,0.0,isssty,Train/Validation
@@ -5323,7 +5321,6 @@ NCCCN1CCN(CCCN)CC1,0.0,isssty,Train/Validation
 Cl/C=C/Cl,0.0,isssty,Train/Validation
 Nc1nc(N)nc(-c2ccccc2)n1,0.0,isssty,Train/Validation
 CCCCN,0.0,isssty,Train/Validation
-[Cl-].[Cl-].c1cc[cH-](->[V+2]<-[cH-]2cccc2)c1,1.0,isssty,Train/Validation
 O=c1cc(-c2ccc(O)cc2)oc2cc(O)cc(O)c12,0.0,isssty,Train/Validation
 O=C(O)c1ccccn1,0.0,isssty,Train/Validation
 COc1cc(-c2oc3cc(O)cc(O)c3c(=O)c2O)ccc1O,0.0,isssty,Train/Validation
@@ -6170,7 +6167,6 @@ COc1ccc(S(=O)(=O)n2ncc(Cl)c(Cl)c2=O)cc1,0.0,isssty,Train/Validation
 Nn1[nH]nc2c3ccccc3nc-2c1=O,1.0,isssty,Train/Validation
 Cc1ccc([N+](=O)[O-])c([N+](=O)[O-])c1,1.0,isssty,Train/Validation
 [Zn],0.0,isssty,Train/Validation
-[NH2-]->[Pt+2]1(<-[NH2-])OCC(=O)O1,1.0,isssty,Train/Validation
 CCCCN(CCCC(=O)O)N=O,0.0,isssty,Train/Validation
 NC(=S)c1c(Cl)cccc1Cl,1.0,isssty,Train/Validation
 CC(N)c1ccccc1.CC(N)c1ccccc1.[Cl-].[Cl-].[Pt+2],1.0,isssty,Train/Validation
@@ -7284,7 +7280,6 @@ COC(=O)c1oc(NO)c(-c2ccccc2)c1-c1ccccc1,0.0,isssty,Train/Validation
 COC(=O)c1oc(N(O)C(C)=O)c(-c2ccccc2)c1-c1ccccc1,0.0,isssty,Train/Validation
 COC(=O)c1oc(N(OC(C)=O)C(C)=O)c(-c2ccccc2)c1-c1ccccc1,0.0,isssty,Train/Validation
 Nc1ccc([N+](=O)[O-])cc1Cl,1.0,isssty,Train/Validation
-C=Cc1c(C)/c2[n-]/c1=C\C1=N3->[Cu+2]<-N4=C(\C=2)C(C)C(CCC(=O)[O-])/C4=C(\CC(=O)[O-])C2=NC(=C(C)C2=C([O-])[O-])/C=C\3C(CC)=C1C.[Na+].[Na+].[Na+],0.0,isssty,Train/Validation
 BrCc1ccc2cccc3c2c1-c1ccccc1-3,1.0,isssty,Train/Validation
 ClC/C=C\CCl,1.0,isssty,Train/Validation
 BrCc1cc2c3c(cccc3c1)-c1ccccc1-2,1.0,isssty,Train/Validation
@@ -7562,7 +7557,6 @@ Cl[Pt-2](Cl)(Cl)Cl.[K+].[K+],1.0,isssty,Train/Validation
 O[C@H]1[C@H]2O[C@H]2c2c(ccc3c4c5c(cccc5cc23)C=C4)[C@@H]1O,1.0,isssty,Train/Validation
 Cl[Pd-2](Cl)(Cl)Cl.[K+].[K+],0.0,isssty,Train/Validation
 O.O.O=C([O-])C(=O)[O-].O=C([O-])C(=O)[O-].[K+].[K+].[Pt+2],0.0,isssty,Train/Validation
-O.O.O=N([O-])->[Pt](<-N(=O)[O-])(<-N(=O)[O-])<-N(=O)[O-].[K+].[K+],0.0,isssty,Train/Validation
 N#CS[Pt-2](SC#N)(SC#N)(SC#N)(SC#N)SC#N.[K+].[K+],0.0,isssty,Train/Validation
 Br[Pt-2](Br)(Br)(Br)(Br)Br.[K+].[K+],0.0,isssty,Train/Validation
 CNP1(NC)=NP(NC)(NC)=NP(NC)(NC)=N1,0.0,isssty,Train/Validation
@@ -7608,9 +7602,7 @@ CC(=O)Nc1ccc(S(=O)(=O)Nc2ccccn2)cc1,0.0,isssty,Train/Validation
 O=[N+]([O-])N(c1ccccn1)S(=O)(=O)c1ccccc1,0.0,isssty,Train/Validation
 CC(C)(C)N(Cc1ccccc1)CC(O)c1ccc(O)c(CO)c1,0.0,isssty,Train/Validation
 CC(C)(C)N(CC(=O)c1ccc(O)c(CO)c1)Cc1ccccc1.[Cl-].[H+],0.0,isssty,Train/Validation
-CC1=CC(C)=O->[Cr]23(O1)(OC(C)=CC(C)=O->2)OC(C)=CC(C)=O->3,1.0,isssty,Train/Validation
 O=C1OC2C(O)COC2(O)[C@@]1(O)Cc1c[nH]c2ccccc12,0.0,isssty,Train/Validation
-CC1=CC(C)=O->[Al]23(O1)(OC(C)=CC(C)=O->2)OC(C)=CC(C)=O->3,1.0,isssty,Train/Validation
 CC(O)C(=O)O[Al](OC(=O)C(C)O)OC(=O)C(C)O,0.0,isssty,Train/Validation
 O=C/C=C/c1ccccc1Cl,1.0,isssty,Train/Validation
 C[c-]1occc(=O)c1=O.C[c-]1occc(=O)c1=O.C[c-]1occc(=O)c1=O.[Al+3],0.0,isssty,Train/Validation

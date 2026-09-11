@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import os
 from typing import Any, Dict, List, Tuple, Optional, Self
 import click
@@ -94,7 +95,7 @@ hyperparameters = create_composite_decorator(
     click.option("--anneal_strategy", default="cos"),
     click.option("--name", default=None),
     click.option("--checkpt_save_interval", default=5),
-    click.option("--accumulation_steps", default=1),
+    click.option("--accumulation_steps", type=click.IntRange(min=1), default=1),
     click.option(
         "--loss_function",
         type=click.Choice(LossFunction, case_sensitive=False),
@@ -107,194 +108,95 @@ hyperparameters = create_composite_decorator(
     click.option("--loss_weights", type=click.FLOAT, multiple=True, default=(1,)),  # type: ignore
     click.option("--checkpoint_dir", default="pretrained_models"),
     click.option("--dropout", default=0.05),
-    click.option("--temperature", default=1.0),
+    click.option("--temperature", default=1.0, type=click.FloatRange(min=0, min_open=True)),
     click.option("--norm_type", type=click.Choice(NormType, case_sensitive=False), default=NormType.LAYER),  # type: ignore
     click.option("--attention_type", type=click.Choice(AttentionType, case_sensitive=False), default=AttentionType.MHA),  # type: ignore
-    click.option("--n_global_heads", default=4),
-    click.option("--n_local_heads", default=8),
-    click.option("--global_heads_by_layer", multiple=True, default=[], type=click.INT),
-    click.option("--local_heads_by_layer", multiple=True, default=[], type=click.INT),
     click.option("--flush_secs", default=5),
     click.option("--num_workers", default=4),
     click.option("--prefetch_factor", default=16),
 )
 
 
+@dataclass(eq=False, repr=False)
 class HyperparameterConfig:
-    def __init__(
-        self,
-        # Global Parameters
-        name: Optional[str] = None,
-        random_state: int = int(random() * 1e9),
-        torch_device: str = "auto",
-        best_loss: float = float("inf"),
-        # Data Parameters
-        dataset: Optional[str] = None,
-        dataset_regime: Optional[DatasetRegime] = None,
-        batch_size: Optional[int] = None,
-        max_path_distance: Optional[int] = None,
-        node_feature_dim: Optional[int] = None,
-        edge_feature_dim: Optional[int] = None,
-        output_dim: Optional[int] = None,
-        test_size: Optional[float] = None,
-        tune_size: float = 1.0,
-        num_workers: Optional[int] = None,
-        prefetch_factor: Optional[int] = None,
-        # Model Parameters
-        num_layers: Optional[int] = None,
-        hidden_dim: Optional[int] = None,
-        edge_embedding_dim: Optional[int] = None,
-        ffn_hidden_dim: Optional[int] = None,
-        n_heads: Optional[int] = None,
-        n_global_heads: Optional[int] = None,
-        n_local_heads: Optional[int] = None,
-        heads_by_layer: Optional[List[int]] = None,
-        global_heads_by_layer: Optional[List[int]] = None,
-        local_heads_by_layer: Optional[List[int]] = None,
-        max_in_degree: Optional[int] = None,
-        max_out_degree: Optional[int] = None,
-        dropout: Optional[float] = None,
-        temperature: Optional[float] = None,
-        norm_type: Optional[NormType] = None,
-        attention_type: Optional[AttentionType] = None,
-        residual_type: Optional[ResidualType] = None,
-        # Optimizer Parameters
-        optimizer_type: Optional[OptimizerType] = None,
-        momentum: Optional[float] = None,
-        nesterov: Optional[bool] = None,
-        dampening: Optional[float] = None,
-        lr: Optional[float] = None,
-        b1: Optional[float] = None,
-        b2: Optional[float] = None,
-        weight_decay: Optional[float] = None,
-        eps: Optional[float] = None,
-        clip_grad_norm: float = 5.0,
-        loss_function: Optional[Tuple[LossFunction, ...]] = None,
-        loss_reduction: Optional[LossReductionType] = None,
-        loss_weights: Optional[Tuple[float, ...]] = None,
-        # Scheduler Parameters
-        scheduler_type: Optional[SchedulerType] = None,
-        lr_power: Optional[float] = None,
-        lr_patience: Optional[int] = None,
-        lr_cooldown: Optional[int] = None,
-        lr_min: Optional[float] = None,
-        lr_max: Optional[float] = None,
-        lr_warmup: Optional[int] = None,
-        lr_smooth: Optional[bool] = None,
-        lr_window: Optional[int] = None,
-        lr_reset: Optional[int] = None,
-        lr_factor: Optional[float] = None,
-        pct_start: Optional[float] = None,
-        div_factor: Optional[float] = None,
-        final_div_factor: Optional[float] = None,
-        cycle_momentum: Optional[bool] = None,
-        three_phase: Optional[bool] = None,
-        max_momentum: Optional[float | List[float]] = None,
-        base_momentum: Optional[float | List[float]] = None,
-        last_effective_batch_num: Optional[int] = None,
-        anneal_strategy: Optional[str] = None,
-        # Training Parameters
-        start_epoch: int = 0,
-        epochs: int = 10,
-        accumulation_steps: Optional[int] = None,
-        checkpt_save_interval: int = 1,
-        checkpoint_dir: str = "pretrained_models",
-        # Logging Parameters
-        logdir: Optional[str] = None,
-        flush_secs: Optional[int] = None,
-        purge_step: Optional[int] = None,
-        comment: Optional[str] = None,
-        max_queue: Optional[int] = None,
-        write_to_disk: Optional[bool] = None,
-        filename_suffix: Optional[str] = None,
-    ):
-        # Global Parameters
-        if name is None:
-            name = f"model_{datetime.datetime.now().strftime("%d-%m-%y-%H-%M")}"
-        self.name = name
-        self.random_state = random_state
-        self.torch_device = resolve_device(torch_device)
-        self.best_loss = best_loss
-        # Data Parameters
-        self.dataset = dataset
-        self.dataset_regime = dataset_regime
-        self.batch_size = batch_size
-        self.accumulation_steps = accumulation_steps
-        self.max_path_distance = max_path_distance
-        self.node_feature_dim = node_feature_dim
-        self.edge_feature_dim = edge_feature_dim
-        self.test_size = test_size
-        self.tune_size = tune_size
-        self.output_dim = output_dim
-        self.num_workers = num_workers
-        self.prefetch_factor = prefetch_factor
-        # Model Parameters
-        self.num_layers = num_layers
-        self.hidden_dim = hidden_dim
-        self.edge_embedding_dim = edge_embedding_dim
-        self.ffn_hidden_dim = ffn_hidden_dim
-        self.n_heads = n_heads
-        self.n_global_heads = n_global_heads
-        self.n_local_heads = n_local_heads
-        self.heads_by_layer = heads_by_layer
-        self.global_heads_by_layer = global_heads_by_layer
-        self.local_heads_by_layer = local_heads_by_layer
-        self.max_in_degree = max_in_degree
-        self.max_out_degree = max_out_degree
-        self.norm_type = norm_type
-        self.attention_type = attention_type
-        self.residual_type = residual_type
-        self.dropout = dropout
-        self.temperature = temperature
-        # Optimizer Parameters
-        self.optimizer_type = optimizer_type
-        self.momentum = momentum
-        self.nesterov = nesterov
-        self.dampening = dampening
-        self.lr = lr
-        self.b1 = b1
-        self.b2 = b2
-        self.weight_decay = weight_decay
-        self.eps = eps
-        self.clip_grad_norm = clip_grad_norm
-        self.loss_function = loss_function
-        self.loss_reduction = loss_reduction
-        self.loss_weights = loss_weights
-        # Scheduler Parameters
-        self.lr_power = lr_power
-        self.scheduler_type = scheduler_type
-        self.lr_patience = lr_patience
-        self.lr_cooldown = lr_cooldown
-        self.lr_min = lr_min
-        self.lr_max = lr_max
-        self.lr_warmup = lr_warmup
-        self.lr_smooth = lr_smooth
-        self.lr_window = lr_window
-        self.lr_reset = lr_reset
-        self.lr_factor = lr_factor
-        self.pct_start = pct_start
-        self.div_factor = div_factor
-        self.final_div_factor = final_div_factor
-        self.cycle_momentum = cycle_momentum
-        self.three_phase = three_phase
-        self.max_momentum = max_momentum
-        self.base_momentum = base_momentum
-        self.last_effective_batch_num = last_effective_batch_num
-        self.anneal_strategy = anneal_strategy
-        # Training Parameters
-        self.start_epoch = start_epoch
-        self.epochs = epochs
-        self.checkpt_save_interval = checkpt_save_interval
-        self.checkpoint_dir = checkpoint_dir
-        # Logging Parameters
-        self.logdir = logdir
-        self.flush_secs = flush_secs
-        self.purge_step = purge_step
-        self.comment = comment
-        self.max_queue = max_queue
-        self.write_to_disk = write_to_disk
-        self.filename_suffix = filename_suffix
+    name: Optional[str] = None
+    random_state: int = int(random() * 1000000000.0)
+    torch_device: str = 'auto'
+    best_loss: float = float('inf')
+    dataset: Optional[str] = None
+    dataset_regime: Optional[DatasetRegime] = None
+    batch_size: Optional[int] = None
+    max_path_distance: Optional[int] = None
+    node_feature_dim: Optional[int] = None
+    edge_feature_dim: Optional[int] = None
+    output_dim: Optional[int] = None
+    test_size: Optional[float] = None
+    tune_size: float = 1.0
+    num_workers: Optional[int] = None
+    prefetch_factor: Optional[int] = None
+    num_layers: Optional[int] = None
+    hidden_dim: Optional[int] = None
+    edge_embedding_dim: Optional[int] = None
+    ffn_hidden_dim: Optional[int] = None
+    n_heads: Optional[int] = None
+    heads_by_layer: Optional[List[int]] = None
+    max_in_degree: Optional[int] = None
+    max_out_degree: Optional[int] = None
+    dropout: Optional[float] = None
+    temperature: Optional[float] = None
+    norm_type: Optional[NormType] = None
+    attention_type: Optional[AttentionType] = None
+    residual_type: Optional[ResidualType] = None
+    optimizer_type: Optional[OptimizerType] = None
+    momentum: Optional[float] = None
+    nesterov: Optional[bool] = None
+    dampening: Optional[float] = None
+    lr: Optional[float] = None
+    b1: Optional[float] = None
+    b2: Optional[float] = None
+    weight_decay: Optional[float] = None
+    eps: Optional[float] = None
+    clip_grad_norm: float = 5.0
+    loss_function: Optional[Tuple[LossFunction, ...]] = None
+    loss_reduction: Optional[LossReductionType] = None
+    loss_weights: Optional[Tuple[float, ...]] = None
+    scheduler_type: Optional[SchedulerType] = None
+    lr_power: Optional[float] = None
+    lr_patience: Optional[int] = None
+    lr_cooldown: Optional[int] = None
+    lr_min: Optional[float] = None
+    lr_max: Optional[float] = None
+    lr_warmup: Optional[int] = None
+    lr_smooth: Optional[bool] = None
+    lr_window: Optional[int] = None
+    lr_reset: Optional[int] = None
+    lr_factor: Optional[float] = None
+    pct_start: Optional[float] = None
+    div_factor: Optional[float] = None
+    final_div_factor: Optional[float] = None
+    cycle_momentum: Optional[bool] = None
+    three_phase: Optional[bool] = None
+    max_momentum: Optional[float | List[float]] = None
+    base_momentum: Optional[float | List[float]] = None
+    last_effective_batch_num: Optional[int] = None
+    anneal_strategy: Optional[str] = None
+    start_epoch: int = 0
+    epochs: int = 10
+    accumulation_steps: Optional[int] = None
+    checkpt_save_interval: int = 1
+    checkpoint_dir: str = 'pretrained_models'
+    logdir: Optional[str] = None
+    flush_secs: Optional[int] = None
+    purge_step: Optional[int] = None
+    comment: Optional[str] = None
+    max_queue: Optional[int] = None
+    write_to_disk: Optional[bool] = None
+    filename_suffix: Optional[str] = None
 
+    def __post_init__(self):
+        if self.name is None:
+            self.name = f"model_{datetime.datetime.now().strftime('%d-%m-%y-%H-%M')}"
+        self.torch_device = resolve_device(self.torch_device)
         self.model_state_dict = None
         self.optimizer_state_dict = None
         self.scheduler_state_dict = None
@@ -324,57 +226,14 @@ class HyperparameterConfig:
         return config
 
     def model_config(self) -> ModelConfig:
-        config = ModelConfig()
-        if self.num_layers is not None:
-            config = config.with_num_layers(self.num_layers)
-        if self.hidden_dim is not None:
-            config = config.with_hidden_dim(self.hidden_dim)
-        if self.edge_embedding_dim is not None:
-            config = config.with_edge_embedding_dim(self.edge_embedding_dim)
-        if self.ffn_hidden_dim is not None:
-            config = config.with_ffn_hidden_dim(self.ffn_hidden_dim)
-        if self.max_in_degree is not None:
-            config = config.with_max_in_degree(self.max_in_degree)
-        if self.max_out_degree is not None:
-            config = config.with_max_out_degree(self.max_out_degree)
-        if self.output_dim is not None:
-            config = config.with_output_dim(self.output_dim)
-        if self.node_feature_dim is not None:
-            config = config.with_node_feature_dim(self.node_feature_dim)
-        if self.edge_feature_dim is not None:
-            config = config.with_edge_feature_dim(self.edge_feature_dim)
-        if self.max_path_distance is not None:
-            config = config.with_max_path_distance(self.max_path_distance)
-        if self.dropout is not None:
-            config = config.with_dropout(self.dropout)
-        if self.temperature is not None:
-            config = config.with_temperature(self.temperature)
-        if self.norm_type is not None:
-            config = config.with_norm_type(self.norm_type)
-        if self.attention_type is not None:
-            config = config.with_attention_type(self.attention_type)
-        if self.attention_type == AttentionType.MHA or self.attention_type == AttentionType.LINEAR:
-            if self.n_heads is not None:
-                config = config.with_num_heads(self.n_heads)
-            if self.heads_by_layer is not None:
-                config = config.with_heads_by_layer(self.heads_by_layer)
-        if self.attention_type == AttentionType.FISH:
-            if self.n_local_heads is not None:
-                config = config.with_n_local_heads(self.n_local_heads)
-            if self.n_global_heads is not None:
-                config = config.with_n_global_heads(self.n_global_heads)
-            if self.global_heads_by_layer is not None:
-                config = config.with_global_heads_by_layer(self.global_heads_by_layer)
-            if self.local_heads_by_layer is not None:
-                config = config.with_local_heads_by_layer(self.local_heads_by_layer)
-        if self.residual_type is not None:
-            config = config.with_residual_type(self.residual_type)
-
-        if self.model_state_dict is not None:
-            config = config.with_state_dict(self.model_state_dict)
-            self.model_state_dict = None
-
-        return config
+        return ModelConfig(
+            num_layers=self.num_layers, node_feature_dim=self.node_feature_dim, hidden_dim=self.hidden_dim,
+            edge_feature_dim=self.edge_feature_dim, edge_embedding_dim=self.edge_embedding_dim,
+            ffn_hidden_dim=self.ffn_hidden_dim, output_dim=self.output_dim, n_heads=self.n_heads,
+            heads_by_layer=self.heads_by_layer, max_in_degree=self.max_in_degree, max_out_degree=self.max_out_degree,
+            max_path_distance=self.max_path_distance, dropout=self.dropout, norm_type=self.norm_type,
+            attention_type=self.attention_type, residual_type=self.residual_type, state_dict=self.model_state_dict,
+        )
 
     def scheduler_config(self) -> SchedulerConfig:
         if self.scheduler_type is None:

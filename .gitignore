@@ -169,3 +169,6 @@ cython_debug/
 /data/processed/
 
 .amesformer-cache/
+
+# Locally recovered source data and reconstruction outputs
+/data/reconstructed/

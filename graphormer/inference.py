@@ -36,10 +36,7 @@ def inference_model(
 
     device = torch.device(hparam_config.torch_device)
     model: Graphormer = (
-        model_config.with_node_feature_dim(data_config.num_node_features)
-        .with_edge_feature_dim(data_config.num_edge_features)
-        .with_output_dim(1)
-        .build()
+        model_config.build(node_feature_dim=data_config.num_node_features, edge_feature_dim=data_config.num_edge_features, output_dim=1)
         .to(device)
     )
 

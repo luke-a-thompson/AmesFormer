@@ -1,41 +1,24 @@
-from typing import Tuple
+"""Shortest paths over physical bonds, with a separate virtual node."""
 
-from graphormer.shortest_paths import shortest_paths
 import torch
+from graphormer.shortest_paths import shortest_paths
 
 
-def shortest_path_distance(
-    edge_index: torch.Tensor, max_distance: int = 5
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    edges = [(x.item() + 1, y.item() + 1) for x, y in zip(edge_index[0], edge_index[1])]
-
-    # Insert VNODE, disconnected to allow physical paths between nodes in SPD
-    edges.insert(0, (0, 0))
-
-    node_paths, edge_paths = shortest_paths(edges, max_distance)  # type: ignore
-    # (num_nodes, num_nodes, max_path_len)
-    node_paths_tensor = torch.Tensor(node_paths).int()
-    edge_paths_tensor = torch.Tensor(edge_paths).int()
-
-    # Connect VNODE node paths
-    # Set VNODE paths to [0, node, -1...]
-    physical_nodes = torch.arange(1, node_paths_tensor.shape[1]).view(-1, 1)
-    zeros = torch.zeros_like(physical_nodes)
-    vnode_paths = torch.cat((zeros, physical_nodes), dim=1)
-    # VNODE -> Node
-    node_paths_tensor[0, 1:, :2] = vnode_paths
-    # Node -> VNODE
-    node_paths_tensor[1:, 0, :2] = torch.flip(vnode_paths, dims=[1])
-
-    # Connect VNODE edge paths
-    # Set VNODE edge paths to [new_edge, -1 ... ]
-    extra_edge_idxs = torch.arange(
-        torch.max(edge_paths_tensor).item() + 1,
-        torch.max(edge_paths_tensor).item() + node_paths_tensor.shape[1],
-    ).unsqueeze(-1)
-    # VNODE -> Node
-    edge_paths_tensor[0, 1:, :1] = extra_edge_idxs
-    # Node -> VNODE
-    edge_paths_tensor[1:, 0, :1] = extra_edge_idxs
-
-    return node_paths_tensor, edge_paths_tensor, extra_edge_idxs
+def shortest_path_distance(edge_index: torch.Tensor, max_distance: int = 5, num_nodes: int | None = None):
+    if not 2 <= max_distance <= 64:
+        raise ValueError("max_distance must be between 2 and 64")
+    if num_nodes is None:
+        num_nodes = int(edge_index.max()) + 1 if edge_index.numel() else 0
+    edges = [(0, 0)] + [(source + 1, target + 1) for source, target in edge_index.t().tolist()]
+    # The backend infers node count from endpoints. A self-loop includes trailing isolated atoms;
+    # it never occurs in shortest paths and needs no physical edge feature.
+    nodes, paths = shortest_paths(edges + [(num_nodes, num_nodes)], max_distance)
+    node_paths = torch.tensor(nodes, dtype=torch.long)
+    edge_paths = torch.tensor(paths, dtype=torch.long)
+    atoms = torch.arange(1, num_nodes + 1)
+    node_paths[0, 1:, :2] = torch.stack((torch.zeros_like(atoms), atoms), dim=-1)
+    node_paths[1:, 0, :2] = torch.stack((atoms, torch.zeros_like(atoms)), dim=-1)
+    extra_edges = torch.arange(len(edges), len(edges) + num_nodes).unsqueeze(-1)
+    edge_paths[0, 1:, :1] = extra_edges
+    edge_paths[1:, 0, :1] = extra_edges
+    return node_paths, edge_paths, extra_edges

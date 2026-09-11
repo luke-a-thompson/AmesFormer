@@ -17,6 +17,7 @@ def predict_smiles(
     checkpoint: str | Path = "pretrained_models/AmesFormer-Pro.pt",
     device: str = "auto",
     batch_size: int = 32,
+    temperature: float | None = None,
 ) -> list[dict[str, str | float]]:
     """Predict mutagenicity probabilities using a trusted model checkpoint."""
     if not smiles:
@@ -36,14 +37,14 @@ def predict_smiles(
         temperature=1.0,
     )
     hparams.load_for_inference(verbose=False)
+    if temperature is not None:
+        if not 0 < temperature < float("inf"):
+            raise ValueError("temperature must be finite and positive")
+        hparams.temperature = temperature
     torch.manual_seed(hparams.random_state)
     graphs = [process(from_smiles(value), hparams.max_path_distance) for value in smiles]
     model = (
-        hparams.model_config()
-        .with_node_feature_dim(graphs[0].num_node_features)
-        .with_edge_feature_dim(graphs[0].num_edge_features)
-        .with_output_dim(1)
-        .build()
+        hparams.model_config().build(node_feature_dim=graphs[0].num_node_features, edge_feature_dim=graphs[0].num_edge_features, output_dim=1)
         .to(hparams.torch_device)
         .eval()
     )

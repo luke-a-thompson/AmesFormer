@@ -75,12 +75,8 @@ class GraphormerCollater(Collater):
 
             # Virtual edge attributes have their own boundaries, independent of edge_index.
             edge_attr_subgraphs.append(graph.edge_attr.float())
-            # Legacy preprocessing stores auxiliary paths beyond num_nodes**2.
-            # Apply the single-graph slicing convention separately to each graph;
-            # cumulative num_nodes**2 offsets mix paths from different molecules.
-            num_paths = num_nodes**2
-            node_paths_subgraphs.append(graph.node_paths[:num_paths].reshape(num_nodes, num_nodes, path_length))
-            edge_paths_subgraphs.append(graph.edge_paths[:num_paths].reshape(num_nodes, num_nodes, path_length))
+            node_paths_subgraphs.append(graph.node_paths.reshape(num_nodes, num_nodes, path_length))
+            edge_paths_subgraphs.append(graph.edge_paths.reshape(num_nodes, num_nodes, path_length))
         target_shape = (max_nodes, max_nodes, path_length)
 
         node_subgraphs_padded = []

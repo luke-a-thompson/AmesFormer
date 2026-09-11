@@ -19,11 +19,7 @@ class OptimizerConfig:
         self.batch_size = batch_size
         self.effective_batch_size = accumulation_steps * batch_size
         self.lr = lr
-        self.effective_lr = (
-            self.lr / self.accumulation_steps
-            if self.loss_reduction_type == LossReductionType.MEAN
-            else self.lr / self.effective_batch_size
-        )
+        self.effective_lr = self.lr
 
         self.betas = None
         self.weight_decay = None

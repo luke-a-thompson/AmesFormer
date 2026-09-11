@@ -16,11 +16,10 @@ from torch.optim.lr_scheduler import LRScheduler, OneCycleLR, PolynomialLR, Redu
 from tqdm import tqdm
 
 from graphormer.config.hparams import HyperparameterConfig
-from graphormer.config.options import AttentionType, LossReductionType, ResidualType, SchedulerType, LossFunction
+from graphormer.config.options import LossReductionType, ResidualType, SchedulerType, LossFunction
 from graphormer.config.utils import calculate_pos_weight, model_init_print, save_checkpoint
 from graphormer.data.dataloader import GraphormerBatch, GraphormerDataLoader
 from graphormer.model_analysis import (
-    plot_attention_sigma,
     plot_centrality_in_degree_bias,
     plot_centrality_out_degree_bias,
     plot_edge_path_length_bias,
@@ -56,6 +55,7 @@ class Trainer:
         self.loss = loss
         self.writer = writer
         self.effective_batch_size = effective_batch_size
+        self._accumulated_samples = 0
 
     @classmethod
     def build(
@@ -83,10 +83,7 @@ class Trainer:
         assert data_config.num_node_features is not None
         assert data_config.num_edge_features is not None
         model = (
-            model_config.with_node_feature_dim(data_config.num_node_features)
-            .with_edge_feature_dim(data_config.num_edge_features)
-            .with_output_dim(1)
-            .build()
+            model_config.build(node_feature_dim=data_config.num_node_features, edge_feature_dim=data_config.num_edge_features, output_dim=1)
             .to(hparam_config.torch_device)
         )
         loss_weights = hparam_config.loss_weights
@@ -129,6 +126,8 @@ class Trainer:
 
         progress_bar = tqdm(total=0, desc="Initializing...", unit="batch")
         train_batches_per_epoch = len(train_loader)
+        if trial is not None and self.hparam_config.tune_size is not None:
+            train_batches_per_epoch = min(train_batches_per_epoch, int(train_batches_per_epoch * self.hparam_config.tune_size) + 1)
         eval_batches_per_epoch = len(test_loader)
 
         avg_eval_loss = float("inf")
@@ -140,6 +139,10 @@ class Trainer:
         for epoch in range(self.hparam_config.start_epoch, self.hparam_config.epochs):
             total_train_loss = 0.0
             total_eval_loss = 0.0
+            train_samples = 0
+            eval_samples = 0
+            self.optimizer.zero_grad()
+            self._accumulated_samples = 0
 
             # Set total length for training phase and update description
             progress_bar.reset(total=len(train_loader))
@@ -151,19 +154,14 @@ class Trainer:
             train_batch_num = epoch * train_batches_per_epoch
             loss_values: list[float] = []
             for batch_idx, batch in enumerate(train_loader):
-                if (
-                    self.hparam_config.tune_size is not None
-                    and batch_idx / train_batches_per_epoch > self.hparam_config.tune_size
-                    and trial is not None
-                ):
+                if batch_idx >= train_batches_per_epoch:
                     break
-
-                if train_batch_num == 0 and trial is None:
-                    self.optimizer.zero_grad()
 
                 batch_loss = self.train_step(batch, batch_idx, train_batch_num, loss_values, train_batches_per_epoch)
 
-                total_train_loss += batch_loss
+                samples = batch.y.numel()
+                total_train_loss += batch_loss * (samples if self.hparam_config.loss_reduction == LossReductionType.MEAN else 1)
+                train_samples += samples
                 interleaved_list = ", ".join(
                     [
                         f"{w}x '{f.value}'"
@@ -174,22 +172,12 @@ class Trainer:
                 progress_bar.update()  # Increment the progress bar
                 train_batch_num += 1
 
-                avg_loss = total_train_loss / (batch_idx + 1)
-                if self.hparam_config.loss_reduction == LossReductionType.SUM:
-                    avg_loss /= self.hparam_config.batch_size
+                avg_loss = total_train_loss / train_samples
                 self.writer.add_scalar("train/avg_train_loss", avg_loss, epoch)
 
             if isinstance(self.scheduler, PolynomialLR):
                 self.scheduler.step()
-            self.writer.add_scalar(
-                "train/lr",
-                (
-                    self.scheduler.get_last_lr()[0] * self.hparam_config.accumulation_steps
-                    if self.hparam_config.loss_reduction == LossReductionType.MEAN
-                    else self.scheduler.get_last_lr()[0] * self.effective_batch_size
-                ),
-                epoch,
-            )
+            self.writer.add_scalar("train/lr", self.optimizer.param_groups[0]["lr"], epoch)
 
             # Prepare for the evaluation phase
             progress_bar.reset(total=len(test_loader))
@@ -202,16 +190,16 @@ class Trainer:
             eval_batch_num = epoch * eval_batches_per_epoch
             for batch in test_loader:
                 batch_loss = self.eval_step(batch, eval_batch_num, all_eval_preds, all_eval_labels)
-                total_eval_loss += batch_loss
+                samples = batch.y.numel()
+                total_eval_loss += batch_loss * (samples if self.hparam_config.loss_reduction == LossReductionType.MEAN else 1)
+                eval_samples += samples
                 progress_bar.update()
                 eval_batch_num += 1
 
+            avg_eval_loss = total_eval_loss / eval_samples
             if isinstance(self.scheduler, (ReduceLROnPlateau, GreedyLR)):
-                self.scheduler.step(total_eval_loss)
+                self.scheduler.step(avg_eval_loss)
 
-            avg_eval_loss = total_eval_loss / len(test_loader)
-            if self.hparam_config.loss_reduction == LossReductionType.SUM:
-                avg_eval_loss /= float(self.hparam_config.batch_size)
             progress_bar.set_postfix_str(f"Avg Eval Loss: {avg_eval_loss:.4f}")
             if LossFunction.MSE not in self.hparam_config.loss_function:
                 bac = balanced_accuracy_score(all_eval_labels, all_eval_preds)
@@ -265,15 +253,7 @@ class Trainer:
                     plot_layer_residual_weights(self.model),
                     epoch,
                 )
-            if self.hparam_config.attention_type == AttentionType.FISH:
-                self.writer.add_figure(
-                    # type: ignore
-                    "plot/sigma_strength",
-                    plot_attention_sigma(self.model),
-                    epoch,
-                )
-
-            if total_eval_loss < self.hparam_config.best_loss and trial is None:
+            if avg_eval_loss < self.hparam_config.best_loss and trial is None:
                 self.hparam_config.best_loss = avg_eval_loss
                 save_checkpoint(
                     epoch,
@@ -318,12 +298,20 @@ class Trainer:
 
         loss = self.loss(output, y)
 
-        loss.backward()
-
-        torch.nn.utils.clip_grad_norm_(
-            self.model.parameters(), self.hparam_config.clip_grad_norm, error_if_nonfinite=True
-        )
-        if should_step(batch_idx, self.hparam_config.accumulation_steps, train_batches_per_epoch):  # type: ignore
+        # Accumulate summed gradients, then average over the actual window size.
+        # This also handles an uneven final batch and an incomplete final window.
+        samples = y.numel()
+        summed_loss = loss * samples if self.hparam_config.loss_reduction == LossReductionType.MEAN else loss
+        summed_loss.backward()
+        self._accumulated_samples += samples
+        if should_step(batch_idx, self.hparam_config.accumulation_steps, train_batches_per_epoch):
+            for parameter in self.model.parameters():
+                if parameter.grad is not None:
+                    parameter.grad.div_(self._accumulated_samples)
+            torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(), self.hparam_config.clip_grad_norm, error_if_nonfinite=True
+            )
+            self._accumulated_samples = 0
             self.optimizer.step()
             self.optimizer.zero_grad()
             if isinstance(self.scheduler, OneCycleLR):

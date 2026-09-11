@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import List, Optional, Tuple
 import click
 from random import random
@@ -83,343 +84,130 @@ tuning_hyperparameters = create_composite_decorator(
 )
 
 
+@dataclass(eq=False, repr=False)
 class TuningHyperparameterConfig:
-    def __init__(
-        self,
-        # Tuning Parameters
-        study_name: str,
-        random_state: int = int(random() * 1e9),
-        torch_device: str = "auto",
-        checkpoint_dir: str = "optuna_models",
-        n_trials: Optional[int] = None,
-        # Data Parameters
-        dataset: Optional[str] = None,
-        dataset_regime: Optional[DatasetRegime] = None,
-        node_feature_dim: Optional[int] = None,
-        edge_feature_dim: Optional[int] = None,
-        max_path_distance: Optional[int] = None,
-        batch_size: Optional[int] = None,
-        test_size: Optional[float] = None,
-        tune_size: Optional[float] = None,
-        # Model Parameters
-        num_layers: Optional[int] = None,
-        hidden_dim: Optional[int] = None,
-        edge_embedding_dim: Optional[int] = None,
-        ffn_hidden_dim: Optional[int] = None,
-        n_heads: Optional[int] = None,
-        n_global_heads: Optional[int] = None,
-        n_local_heads: Optional[int] = None,
-        heads_by_layer: Optional[List[int]] = None,
-        global_heads_by_layer: Optional[List[int]] = None,
-        local_heads_by_layer: Optional[List[int]] = None,
-        max_in_degree: Optional[int] = None,
-        max_out_degree: Optional[int] = None,
-        output_dim: Optional[int] = None,
-        max_dropout: Optional[float] = None,
-        min_dropout: Optional[float] = None,
-        norm_type: Optional[NormType] = None,
-        attention_type: Optional[AttentionType] = None,
-        residual_type: Optional[ResidualType] = None,
-        # Optimizer Parameters
-        optimizer_type: Optional[OptimizerType] = None,
-        loss_reduction_type: Optional[LossReductionType] = None,
-        lr: Optional[float] = None,
-        b1: Optional[float] = None,
-        b2: Optional[float] = None,
-        max_b1: Optional[float] = None,
-        min_b1: Optional[float] = None,
-        max_b2: Optional[float] = None,
-        min_b2: Optional[float] = None,
-        weight_decay: Optional[float] = None,
-        max_weight_decay: Optional[float] = None,
-        min_weight_decay: Optional[float] = None,
-        eps: Optional[float] = None,
-        max_eps: Optional[float] = None,
-        min_eps: Optional[float] = None,
-        clip_grad_norm: float = 3.0,
-        max_clip_grad_norm: float = 5.0,
-        min_clip_grad_norm: float = 1.0,
-        momentum: Optional[float] = None,
-        max_momentum: Optional[float] = None,
-        min_momentum: Optional[float] = None,
-        dampening: Optional[float] = None,
-        max_dampening: Optional[float] = None,
-        min_dampening: Optional[float] = None,
-        nesterov: Optional[float] = None,
-        loss_function: Optional[LossFunction | tuple[LossFunction, ...]] = None,
-        loss_weights: Optional[Tuple[float, ...]] = None,
-        # Scheduler Parameters
-        scheduler_type: Optional[SchedulerType] = None,
-        lr_power: Optional[float] = None,
-        lr_min: Optional[float] = None,
-        lr_max: Optional[float] = None,
-        max_lr_power: Optional[float] = None,
-        min_lr_power: Optional[float] = None,
-        lr_patience: Optional[int] = None,
-        max_lr_patience: Optional[int] = None,
-        min_lr_patience: Optional[int] = None,
-        lr_cooldown: Optional[int] = None,
-        max_lr_cooldown: Optional[int] = None,
-        min_lr_cooldown: Optional[int] = None,
-        max_lr_min: Optional[float] = None,
-        min_lr_min: Optional[float] = None,
-        max_lr_max: Optional[float] = None,
-        min_lr_max: Optional[float] = None,
-        lr_warmup: Optional[int] = None,
-        lr_smooth: Optional[bool] = None,
-        max_lr_warmup: Optional[int] = None,
-        min_lr_warmup: Optional[int] = None,
-        lr_window: Optional[int] = None,
-        max_lr_window: Optional[int] = None,
-        min_lr_window: Optional[int] = None,
-        lr_reset: Optional[float] = None,
-        max_lr_reset: Optional[int] = None,
-        min_lr_reset: Optional[int] = None,
-        lr_factor: Optional[float] = None,
-        max_lr_factor: Optional[float] = None,
-        min_lr_factor: Optional[float] = None,
-        pct_start: Optional[float] = None,
-        min_pct_start: Optional[float] = None,
-        max_pct_start: Optional[float] = None,
-        div_factor: Optional[float] = None,
-        min_div_factor: Optional[float] = None,
-        max_div_factor: Optional[float] = None,
-        final_div_factor: Optional[float] = None,
-        min_final_div_factor: Optional[float] = None,
-        max_final_div_factor: Optional[float] = None,
-        cycle_momentum: Optional[bool] = None,
-        three_phase: Optional[bool] = None,
-        min_max_momentum: Optional[float] = None,
-        max_max_momentum: Optional[float] = None,
-        base_momentum: Optional[float | List[float]] = None,
-        min_base_momentum: Optional[float] = None,
-        max_base_momentum: Optional[float] = None,
-        anneal_strategy: Optional[str] = None,
-        last_effective_batch_num: Optional[int] = None,
-        # Logging Parameters
-        logdir: Optional[str] = None,
-        # Training Parameters
-        epochs: int = 40,
-        accumulation_steps: Optional[int] = None,
-        **kwargs,
-    ):
-        self.n_trials = n_trials
-        self.study_name = study_name
-        self.random_state = random_state
-        self.torch_device = resolve_device(torch_device)
-        self.checkpoint_dir = checkpoint_dir
-        self.dataset = dataset
-        self.dataset_regime = dataset_regime
-        self.node_feature_dim = node_feature_dim
-        self.edge_feature_dim = edge_feature_dim
-        self.max_path_distance = max_path_distance
-        self.batch_size = batch_size
-        self.test_size = test_size
-        self.tune_size = tune_size
+    study_name: str
+    random_state: int = int(random() * 1000000000.0)
+    torch_device: str = 'auto'
+    checkpoint_dir: str = 'optuna_models'
+    n_trials: Optional[int] = None
+    dataset: Optional[str] = None
+    dataset_regime: Optional[DatasetRegime] = None
+    node_feature_dim: Optional[int] = None
+    edge_feature_dim: Optional[int] = None
+    max_path_distance: Optional[int] = None
+    batch_size: Optional[int] = None
+    test_size: Optional[float] = None
+    tune_size: Optional[float] = None
+    num_layers: Optional[int] = None
+    hidden_dim: Optional[int] = None
+    edge_embedding_dim: Optional[int] = None
+    ffn_hidden_dim: Optional[int] = None
+    n_heads: Optional[int] = None
+    heads_by_layer: Optional[List[int]] = None
+    max_in_degree: Optional[int] = None
+    max_out_degree: Optional[int] = None
+    output_dim: Optional[int] = None
+    max_dropout: Optional[float] = None
+    min_dropout: Optional[float] = None
+    norm_type: Optional[NormType] = None
+    attention_type: Optional[AttentionType] = None
+    residual_type: Optional[ResidualType] = None
+    optimizer_type: Optional[OptimizerType] = None
+    loss_reduction_type: Optional[LossReductionType] = None
+    lr: Optional[float] = None
+    b1: Optional[float] = None
+    b2: Optional[float] = None
+    max_b1: Optional[float] = None
+    min_b1: Optional[float] = None
+    max_b2: Optional[float] = None
+    min_b2: Optional[float] = None
+    weight_decay: Optional[float] = None
+    max_weight_decay: Optional[float] = None
+    min_weight_decay: Optional[float] = None
+    eps: Optional[float] = None
+    max_eps: Optional[float] = None
+    min_eps: Optional[float] = None
+    clip_grad_norm: float = 3.0
+    max_clip_grad_norm: float = 5.0
+    min_clip_grad_norm: float = 1.0
+    momentum: Optional[float] = None
+    max_momentum: Optional[float] = None
+    min_momentum: Optional[float] = None
+    dampening: Optional[float] = None
+    max_dampening: Optional[float] = None
+    min_dampening: Optional[float] = None
+    nesterov: Optional[float] = None
+    loss_function: Optional[LossFunction | tuple[LossFunction, ...]] = None
+    loss_weights: Optional[Tuple[float, ...]] = None
+    scheduler_type: Optional[SchedulerType] = None
+    lr_power: Optional[float] = None
+    lr_min: Optional[float] = None
+    lr_max: Optional[float] = None
+    max_lr_power: Optional[float] = None
+    min_lr_power: Optional[float] = None
+    lr_patience: Optional[int] = None
+    max_lr_patience: Optional[int] = None
+    min_lr_patience: Optional[int] = None
+    lr_cooldown: Optional[int] = None
+    max_lr_cooldown: Optional[int] = None
+    min_lr_cooldown: Optional[int] = None
+    max_lr_min: Optional[float] = None
+    min_lr_min: Optional[float] = None
+    max_lr_max: Optional[float] = None
+    min_lr_max: Optional[float] = None
+    lr_warmup: Optional[int] = None
+    lr_smooth: Optional[bool] = None
+    max_lr_warmup: Optional[int] = None
+    min_lr_warmup: Optional[int] = None
+    lr_window: Optional[int] = None
+    max_lr_window: Optional[int] = None
+    min_lr_window: Optional[int] = None
+    lr_reset: Optional[float] = None
+    max_lr_reset: Optional[int] = None
+    min_lr_reset: Optional[int] = None
+    lr_factor: Optional[float] = None
+    max_lr_factor: Optional[float] = None
+    min_lr_factor: Optional[float] = None
+    pct_start: Optional[float] = None
+    min_pct_start: Optional[float] = None
+    max_pct_start: Optional[float] = None
+    div_factor: Optional[float] = None
+    min_div_factor: Optional[float] = None
+    max_div_factor: Optional[float] = None
+    final_div_factor: Optional[float] = None
+    min_final_div_factor: Optional[float] = None
+    max_final_div_factor: Optional[float] = None
+    cycle_momentum: Optional[bool] = None
+    three_phase: Optional[bool] = None
+    min_max_momentum: Optional[float] = None
+    max_max_momentum: Optional[float] = None
+    base_momentum: Optional[float | List[float]] = None
+    min_base_momentum: Optional[float] = None
+    max_base_momentum: Optional[float] = None
+    anneal_strategy: Optional[str] = None
+    last_effective_batch_num: Optional[int] = None
+    logdir: Optional[str] = None
+    epochs: int = 40
+    accumulation_steps: Optional[int] = None
 
-        # Model Parameters
-        self.num_layers = num_layers
-        self.hidden_dim = hidden_dim
-        self.edge_embedding_dim = edge_embedding_dim
-        self.ffn_hidden_dim = ffn_hidden_dim
-        self.n_heads = n_heads
-        self.heads_by_layer = heads_by_layer
-        self.max_in_degree = max_in_degree
-        self.max_out_degree = max_out_degree
-        self.output_dim = output_dim
-        self.max_dropout = max_dropout
-        self.min_dropout = min_dropout
-        self.norm_type = norm_type
-        self.attention_type = attention_type
-        self.n_global_heads = n_global_heads
-        self.n_local_heads = n_local_heads
-        self.global_heads_by_layer = global_heads_by_layer
-        self.local_heads_by_layer = local_heads_by_layer
-        self.residual_type = residual_type
-
-        # Optimizer Parameters
-        self.optimizer_type = optimizer_type
-        self.loss_reduction_type = loss_reduction_type
-        self.lr = lr
-        self.b1 = b1
-        self.b2 = b2
-        self.max_b1 = max_b1
-        self.min_b1 = min_b1
-        self.max_b2 = max_b2
-        self.min_b2 = min_b2
-        self.eps = eps
-        self.weight_decay = weight_decay
-        self.max_weight_decay = max_weight_decay
-        self.min_weight_decay = min_weight_decay
-        self.max_eps = max_eps
-        self.min_eps = min_eps
-        self.clip_grad_norm = clip_grad_norm
-        self.max_clip_grad_norm = max_clip_grad_norm
-        self.min_clip_grad_norm = min_clip_grad_norm
-        self.momentum = momentum
-        self.max_momentum = max_momentum
-        self.min_momentum = min_momentum
-        self.dampening = dampening
-        self.max_dampening = max_dampening
-        self.min_dampening = min_dampening
-        self.nesterov = nesterov
-
-        self.loss_function = loss_function
-        self.loss_weights = loss_weights
-
-        # Scheduler Parameters
-        self.scheduler_type = scheduler_type
-        self.lr_power = lr_power
-        self.max_lr_power = max_lr_power
-        self.min_lr_power = min_lr_power
-        self.lr_patience = lr_patience
-        self.max_lr_patience = max_lr_patience
-        self.min_lr_patience = min_lr_patience
-        self.lr_cooldown = lr_cooldown
-        self.max_lr_cooldown = max_lr_cooldown
-        self.min_lr_cooldown = min_lr_cooldown
-        self.lr_min = lr_min
-        self.max_lr_min = max_lr_min
-        self.min_lr_min = min_lr_min
-        self.lr_max = lr_max
-        self.max_lr_max = max_lr_max
-        self.min_lr_max = min_lr_max
-        self.lr_warmup = lr_warmup
-        self.max_lr_warmup = max_lr_warmup
-        self.min_lr_warmup = min_lr_warmup
-        self.lr_smooth = lr_smooth
-        self.lr_window = lr_window
-        self.max_lr_window = max_lr_window
-        self.min_lr_window = min_lr_window
-        self.lr_reset = lr_reset
-        self.max_lr_reset = max_lr_reset
-        self.min_lr_reset = min_lr_reset
-        self.lr_factor = lr_factor
-        self.max_lr_factor = max_lr_factor
-        self.min_lr_factor = min_lr_factor
-        self.pct_start = pct_start
-        self.min_pct_start = min_pct_start
-        self.max_pct_start = max_pct_start
-        self.div_factor = div_factor
-        self.min_div_factor = min_div_factor
-        self.max_div_factor = max_div_factor
-        self.final_div_factor = final_div_factor
-        self.min_final_div_factor = min_final_div_factor
-        self.max_final_div_factor = max_final_div_factor
-        self.cycle_momentum = cycle_momentum
-        self.three_phase = three_phase
-        self.min_max_momentum = min_max_momentum
-        self.max_max_momentum = max_max_momentum
-        self.base_momentum = base_momentum
-        self.min_base_momentum = min_base_momentum
-        self.max_base_momentum = max_base_momentum
-        self.anneal_strategy = anneal_strategy
-        self.last_effective_batch_num = last_effective_batch_num
-
-        # Logging Parameters
-        self.logdir = logdir
-
-        # Training Parameters
-        self.epochs = epochs
-        self.accumulation_steps = accumulation_steps
+    def __post_init__(self):
+        self.torch_device = resolve_device(self.torch_device)
 
     def create_hyperparameters(self, trial: Trial) -> HyperparameterConfig:
-        if self.batch_size is None:
-            raise AttributeError("batch_size not defined for TuningHyperparameterConfig")
-        if self.min_dropout is None:
-            raise AttributeError("min_dropout not defined for TuningHyperparameterConfig")
-        if self.max_dropout is None:
-            raise AttributeError("max_dropout not defined for TuningHyperparameterConfig")
-        if self.lr is None:
-            raise AttributeError("min_lr not defined for TuningHyperparameterConfig")
-        if self.min_b1 is None:
-            raise AttributeError("min_b1 not defined for TuningHyperparameterConfig")
-        if self.max_b1 is None:
-            raise AttributeError("max_b1 not defined for TuningHyperparameterConfig")
-        if self.min_b2 is None:
-            raise AttributeError("min_b2 not defined for TuningHyperparameterConfig")
-        if self.max_b2 is None:
-            raise AttributeError("max_b2 not defined for TuningHyperparameterConfig")
-        if self.min_weight_decay is None:
-            raise AttributeError("min_weight_decay not defined for TuningHyperparameterConfig")
-        if self.max_weight_decay is None:
-            raise AttributeError("max_weight_decay not defined for TuningHyperparameterConfig")
-        if self.min_eps is None:
-            raise AttributeError("min_eps not defined for TuningHyperparameterConfig")
-        if self.max_eps is None:
-            raise AttributeError("max_eps not defined for TuningHyperparameterConfig")
-        if self.min_clip_grad_norm is None:
-            raise AttributeError("min_clip_grad_norm not defined for TuningHyperparameterConfig")
-        if self.max_clip_grad_norm is None:
-            raise AttributeError("max_clip_grad_norm not defined for TuningHyperparameterConfig")
-        if self.min_momentum is None:
-            raise AttributeError("min_momentum not defined for TuningHyperparameterConfig")
-        if self.max_momentum is None:
-            raise AttributeError("max_momentum not defined for TuningHyperparameterConfig")
-        if self.min_dampening is None:
-            raise AttributeError("min_dampening not defined for TuningHyperparameterConfig")
-        if self.max_dampening is None:
-            raise AttributeError("max_dampening not defined for TuningHyperparameterConfig")
-        if self.min_lr_power is None:
-            raise AttributeError("min_lr_power not defined for TuningHyperparameterConfig")
-        if self.max_lr_power is None:
-            raise AttributeError("max_lr_power not defined for TuningHyperparameterConfig")
-        if self.min_lr_patience is None:
-            raise AttributeError("min_lr_patience not defined for TuningHyperparameterConfig")
-        if self.max_lr_patience is None:
-            raise AttributeError("max_lr_patience not defined for TuningHyperparameterConfig")
-        if self.min_lr_cooldown is None:
-            raise AttributeError("min_lr_cooldown not defined for TuningHyperparameterConfig")
-        if self.max_lr_cooldown is None:
-            raise AttributeError("max_lr_cooldown not defined for TuningHyperparameterConfig")
-        if self.min_lr_min is None:
-            raise AttributeError("min_lr_min not defined for TuningHyperparameterConfig")
-        if self.max_lr_min is None:
-            raise AttributeError("max_lr_min not defined for TuningHyperparameterConfig")
-        if self.min_lr_max is None:
-            raise AttributeError("min_lr_max not defined for TuningHyperparameterConfig")
-        if self.max_lr_max is None:
-            raise AttributeError("max_lr_max not defined for TuningHyperparameterConfig")
-        if self.min_lr_warmup is None:
-            raise AttributeError("min_lr_warmup not defined for TuningHyperparameterConfig")
-        if self.max_lr_warmup is None:
-            raise AttributeError("max_lr_warmup not defined for TuningHyperparameterConfig")
-        if self.min_lr_window is None:
-            raise AttributeError("min_lr_window not defined for TuningHyperparameterConfig")
-        if self.max_lr_window is None:
-            raise AttributeError("max_lr_window not defined for TuningHyperparameterConfig")
-        if self.min_lr_reset is None:
-            raise AttributeError("min_lr_reset not defined for TuningHyperparameterConfig")
-        if self.max_lr_reset is None:
-            raise AttributeError("max_lr_reset not defined for TuningHyperparameterConfig")
-        if self.min_lr_factor is None:
-            raise AttributeError("min_lr_factor not defined for TuningHyperparameterConfig")
-        if self.max_lr_factor is None:
-            raise AttributeError("max_lr_factor not defined for TuningHyperparameterConfig")
-        if self.accumulation_steps is None:
-            raise AttributeError("accumulation_steps not defined for TuningHyperparameterConfig")
-        if self.tune_size is None:
-            raise AttributeError("tune_size not defined for TuningHyperparameterConfig")
-        if self.min_pct_start is None:
-            raise AttributeError("min_pct_start not defined for TuningHyperparameterConfig")
-        if self.max_pct_start is None:
-            raise AttributeError("max_pct_start not defined for TuningHyperparameterConfig")
-        if self.min_div_factor is None:
-            raise AttributeError("min_div_factor not defined for TuningHyperparameterConfig")
-        if self.max_div_factor is None:
-            raise AttributeError("max_div_factor not defined for TuningHyperparameterConfig")
-        if self.min_final_div_factor is None:
-            raise AttributeError("min_final_div_factor not defined for TuningHyperparameterConfig")
-        if self.max_final_div_factor is None:
-            raise AttributeError("max_final_div_factor not defined for TuningHyperparameterConfig")
-        if self.min_base_momentum is None:
-            raise AttributeError("min_base_momentum not defined for TuningHyperparameterConfig")
-        if self.max_base_momentum is None:
-            raise AttributeError("max_base_momentum not defined for TuningHyperparameterConfig")
-        if self.min_max_momentum is None:
-            raise AttributeError("min_max_momentum not defined for TuningHyperparameterConfig")
-        if self.max_max_momentum is None:
-            raise AttributeError("max_max_momentum not defined for TuningHyperparameterConfig")
+        for field in (
+            'batch_size', 'min_dropout', 'max_dropout', 'lr', 'min_b1', 'max_b1',
+            'min_b2', 'max_b2', 'min_weight_decay', 'max_weight_decay', 'min_eps', 'max_eps',
+            'min_clip_grad_norm', 'max_clip_grad_norm', 'min_momentum', 'max_momentum', 'min_dampening', 'max_dampening',
+            'min_lr_power', 'max_lr_power', 'min_lr_patience', 'max_lr_patience', 'min_lr_cooldown', 'max_lr_cooldown',
+            'min_lr_min', 'max_lr_min', 'min_lr_max', 'max_lr_max', 'min_lr_warmup', 'max_lr_warmup',
+            'min_lr_window', 'max_lr_window', 'min_lr_reset', 'max_lr_reset', 'min_lr_factor', 'max_lr_factor',
+            'accumulation_steps', 'tune_size', 'min_pct_start', 'max_pct_start', 'min_div_factor', 'max_div_factor',
+            'min_final_div_factor', 'max_final_div_factor', 'min_base_momentum', 'max_base_momentum', 'min_max_momentum', 'max_max_momentum',
+        ):
+            if getattr(self, field) is None:
+                label = "min_lr" if field == "lr" else field
+                raise AttributeError(f"{label} not defined for TuningHyperparameterConfig")
 
         if self.residual_type is None:
             self.residual_type = ResidualType(
@@ -442,7 +230,8 @@ class TuningHyperparameterConfig:
                     ],
                 )
             )
-        if self.loss_reduction_type is None:
+        loss_reduction_type = self.loss_reduction_type
+        if loss_reduction_type is None:
             loss_reduction_type = LossReductionType(
                 trial.suggest_categorical("loss_reduction", [LossReductionType.MEAN, LossReductionType.SUM])
             )
@@ -539,10 +328,6 @@ class TuningHyperparameterConfig:
             norm_type=self.norm_type,
             attention_type=self.attention_type,
             heads_by_layer=self.heads_by_layer,
-            n_global_heads=self.n_global_heads,
-            n_local_heads=self.n_local_heads,
-            global_heads_by_layer=self.global_heads_by_layer,
-            local_heads_by_layer=self.local_heads_by_layer,
             residual_type=self.residual_type,
             # Optimizer Parameters
             optimizer_type=self.optimizer_type,

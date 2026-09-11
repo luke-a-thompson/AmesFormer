@@ -182,6 +182,7 @@ def inference(ctx, smiles, checkpoint, mc_samples: Optional[int], mc_dropout_rat
             param_hint="--name",
             param_type="option",
         )
+    temperature = kwargs["temperature"] if ctx.get_parameter_source("temperature") == click.core.ParameterSource.COMMANDLINE else None
     if smiles:
         if ctx.get_parameter_source("dataset") == click.core.ParameterSource.COMMANDLINE:
             raise click.UsageError("Use either --smiles or --dataset, not both.")
@@ -189,14 +190,15 @@ def inference(ctx, smiles, checkpoint, mc_samples: Optional[int], mc_dropout_rat
             raise click.UsageError("--mc_samples is only supported for dataset evaluation.")
         if checkpoint is None:
             checkpoint = Path(kwargs["checkpoint_dir"]) / f"{kwargs['name']}.pt"
-        _predict_json(smiles, checkpoint, kwargs["torch_device"], kwargs["batch_size"])
+        _predict_json(smiles, checkpoint, kwargs["torch_device"], kwargs["batch_size"], temperature)
         return
     if checkpoint is not None:
         kwargs.update(name=checkpoint.stem, checkpoint_dir=str(checkpoint.parent))
     hparam_config = HyperparameterConfig(**kwargs)
     hparam_config.load_for_inference()
     hparam_config.dataset_regime = DatasetRegime.TEST
-    hparam_config.temperature = kwargs.get("temperature", hparam_config.temperature)
+    if temperature is not None:
+        hparam_config.temperature = temperature
     torch.manual_seed(hparam_config.random_state)
     results = inference_model(hparam_config, mc_samples=mc_samples, mc_dropout_rate=mc_dropout_rate)
 
@@ -232,11 +234,11 @@ def estimate_noise_scale(**kwargs):
 #     friedman_from_bac_csv(bac_csv_path, models, alpha)
 
 
-def _predict_json(smiles, checkpoint, torch_device, batch_size):
+def _predict_json(smiles, checkpoint, torch_device, batch_size, temperature=None):
     from graphormer.predict import predict_smiles
 
     try:
-        results = predict_smiles(list(smiles), checkpoint, torch_device, batch_size)
+        results = predict_smiles(list(smiles), checkpoint, torch_device, batch_size, temperature)
     except ValueError as error:
         raise click.ClickException(str(error)) from error
     click.echo(json.dumps(results, indent=2))

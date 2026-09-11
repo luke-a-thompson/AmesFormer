@@ -9,13 +9,15 @@ uv sync                  # CPU
 uv sync --extra cuda     # Optional: NVIDIA CUDA
 ```
 
+**Model update:** AmesFormer-Pro has been retrained with the graph and attention fixes: held-out ROC-AUC 0.786 and balanced accuracy 72.8%. See [retraining results](reports/retraining-results.md). AmesFormer-Honma still contains legacy weights and needs revalidation.
+
 Predict with the bundled AmesFormer-Pro model:
 
 ```sh
 uv run --no-sync inference --smiles 'CCO' --smiles 'c1ccccc1' --name AmesFormer-Pro
 ```
 
-Run inference on a dataset's test split:
+Run inference on every row of a dataset:
 
 ```sh
 uv run --no-sync inference --dataset data/raw/Combined.xlsx --name AmesFormer-Pro
@@ -23,8 +25,7 @@ uv run --no-sync inference --dataset data/raw/Combined.xlsx --name AmesFormer-Pr
 
 - **Model:** inference requires `--name` or `--checkpoint`.
 - **Dataset:** a CSV/XLSX file with `smiles` and `ames` (0/1) columns.
-- **Splits:** files named `Combined`, `Honma_New`, `Hansen_New`, or `tox24_all` use benchmark splits. Other files use all rows for inference and a random train/validation split for training.
-- **Combined:** benchmark inference needs the full, ordered dataset; the bundled workbook is too small.
+- **Splits:** inference uses all rows. Training uses benchmark training portions for `Combined`, `Honma_New`, `Hansen_New`, and `tox24_all`; other filenames use a random train/validation split. Pass only held-out rows when evaluating performance.
 - **OGB:** the legacy loader accepts an `ogbg_molpcba` directory, but its multitask labels are not supported by the binary AmesFormer training/inference pipeline.
 - **Cache:** graphs are cached automatically in `.amesformer-cache/` beside the dataset.
 

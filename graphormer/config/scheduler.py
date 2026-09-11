@@ -169,16 +169,8 @@ class SchedulerConfig:
                 if self.reset is None:
                     raise AttributeError("reset is not defined for GreedyLR scheduler")
 
-                effective_min_lr = (
-                    self.min_lr / self.accumulation_steps
-                    if self.loss_reduction == LossReductionType.MEAN
-                    else self.min_lr / self.effective_batch_size
-                )
-                effective_max_lr = (
-                    self.max_lr / self.accumulation_steps
-                    if self.loss_reduction == LossReductionType.MEAN
-                    else self.max_lr / self.effective_batch_size
-                )
+                effective_min_lr = self.min_lr
+                effective_max_lr = self.max_lr
 
                 greedy_lr_params = {
                     "factor": self.factor,
@@ -206,11 +198,7 @@ class SchedulerConfig:
                 if self.min_lr is None:
                     raise AttributeError("min_lr is not defined for ReduceLROnPlateau scheduler")
 
-                effective_min_lr = (
-                    self.min_lr / self.accumulation_steps
-                    if self.loss_reduction == LossReductionType.MEAN
-                    else self.min_lr / self.effective_batch_size
-                )
+                effective_min_lr = self.min_lr
                 plateau_lr_params = {
                     "factor": self.factor,
                     "patience": self.patience,
@@ -248,12 +236,8 @@ class SchedulerConfig:
                 if self.last_effective_batch_num is None:
                     raise AttributeError("last_effective_batch_num is not defined for OneCycleLR scheduler")
 
-                effective_max_lr = (
-                    self.max_lr / self.accumulation_steps
-                    if self.loss_reduction == LossReductionType.MEAN
-                    else self.max_lr / self.effective_batch_size
-                )
-                effective_steps_per_epoch = self.train_batches_per_epoch // self.accumulation_steps
+                effective_max_lr = self.max_lr
+                effective_steps_per_epoch = (self.train_batches_per_epoch + self.accumulation_steps - 1) // self.accumulation_steps
                 total_steps = self.total_iters * effective_steps_per_epoch
 
                 one_cycle_lr_params = {

@@ -19,35 +19,18 @@ def check_smiles_and_label(smiles, label) -> Optional[str]:
 
 
 def process(data, max_distance: int):
-    data.x = torch.cat((torch.ones(1, data.x.shape[1]) * -1, data.x), dim=0)
-    new_idxs = torch.stack((torch.zeros(data.x.shape[0]), torch.arange(0, data.x.shape[0])), dim=0).transpose(0, 1)
-
-    # Check if there are any isolated nodes not represented in the edge index
-    for node_index in range(0, data.x.shape[0]):
-        if node_index not in data.edge_index[0] and node_index not in data.edge_index[1]:
-            data.edge_index = torch.cat((data.edge_index, torch.tensor([[node_index], [node_index]])), dim=1)
-
-    node_paths, edge_paths, extra_edge_idxs = shortest_path_distance(data.edge_index, max_distance)
-    original_edge_index = data.edge_index
-    data.edge_index = torch.cat((new_idxs, data.edge_index.transpose(0, 1)), dim=0).transpose(0, 1).long()
-    data.degrees = torch.stack(
-        [degree(data.edge_index[:, 1], data.x.shape[0]), degree(data.edge_index[:, 0], data.x.shape[0])],
-    ).transpose(0, 1)
+    num_atoms = data.num_nodes
+    node_paths, edge_paths, _ = shortest_path_distance(data.edge_index, max_distance, num_atoms)
+    # Centrality describes physical bonds; the virtual node has no physical degree.
+    atom_degrees = torch.stack([degree(data.edge_index[0], num_atoms), degree(data.edge_index[1], num_atoms)], dim=-1)
+    data.degrees = torch.cat((torch.zeros(1, 2), atom_degrees))
+    virtual_edges = torch.stack((torch.zeros(num_atoms, dtype=torch.long), torch.arange(1, num_atoms + 1)))
+    data.edge_index = torch.cat((torch.zeros(2, 1, dtype=torch.long), data.edge_index + 1, virtual_edges), dim=1)
+    data.x = torch.cat((torch.full((1, data.x.shape[1]), -1), data.x))
+    data.edge_attr = torch.cat((
+        torch.full((1, data.edge_attr.shape[1]), -1), data.edge_attr,
+        torch.full((num_atoms, data.edge_attr.shape[1]), -1),
+    ))
     data.node_paths = node_paths.flatten(0, 1)
     data.edge_paths = edge_paths.flatten(0, 1)
-    data.edge_attr = torch.cat(
-        (
-            torch.ones(1, data.edge_attr.shape[1]) * -1,
-            data.edge_attr,
-            torch.ones(extra_edge_idxs.shape[0], data.edge_attr.shape[1]) * -1,
-        ),
-        dim=0,
-    )
-
-    assert len(data.node_paths) == len(data.edge_paths)
-    assert (
-        node_paths.shape[0] - 1 == data.x.shape[0]
-    ), f"{node_paths.shape[0]}, {data.x.shape[0]}, {original_edge_index}"
-    assert data.degrees.shape[0] == data.x.shape[0]
-
     return data

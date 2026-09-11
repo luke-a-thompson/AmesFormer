@@ -1,9 +1,4 @@
-from typing import List
-import torch
 from matplotlib.figure import Figure
-from torch.nn.utils.rnn import pad_sequence
-from graphormer.config.options import AttentionType
-from graphormer.modules.attention import GraphormerFishAttention
 from graphormer.modules.model import Graphormer
 import matplotlib.pyplot as plt
 
@@ -66,18 +61,5 @@ def plot_layer_residual_weights(model: Graphormer) -> Figure:
     ax.set_xlabel("Layer")
     ax.set_ylabel("Residual Weight")
     ax.grid(True)
-
-    return fig
-
-
-def plot_attention_sigma(model: Graphormer) -> Figure:
-    attention_layers: List[GraphormerFishAttention] = [x.attention for k, x in model.module_dict.items() if k.startswith("residual_layer") and isinstance(x.attention, GraphormerFishAttention)]  # type: ignore
-    sigma: torch.Tensor = pad_sequence([layer.sigma for layer in attention_layers], padding_value=0.0)
-    fig, ax = plt.subplots()
-    cax = ax.imshow(sigma.detach().cpu().numpy(), cmap="viridis")
-    fig.colorbar(cax)
-    ax.set_title("Sigma Strength by Layer and Attention Head")
-    ax.set_xlabel("Layer")
-    ax.set_ylabel("Global Attention Head")
 
     return fig

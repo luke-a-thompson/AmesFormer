@@ -77,207 +77,45 @@ class DataConfig:
             "prefetch_factor": self.prefetch_factor if self.num_workers > 0 else None,
             "persistent_workers": self.num_workers > 0,
         }
-        if self.dataset_type is None:
+        if self.dataset_type == DatasetType.OGBG_MOLPCBA:
+            from graphormer.data.datasets import OGBDataset
+
+            dataset = OGBDataset(str(self.dataset_path.parent), max_distance=self.max_path_distance)
+            split = dataset.get_idx_split()
+            train_ids, valid_ids = split["train"], split["valid"]
+        else:
             from graphormer.data.datasets.graphormer_dataset import FileDataset
 
-            dataset = FileDataset(self.dataset_path, max_distance=self.max_path_distance)
-            self.num_node_features = dataset.num_node_features
-            self.num_edge_features = dataset.num_edge_features
-            self.num_classes = dataset.num_classes
-            if self.dataset_regime == DatasetRegime.TEST:
-                return GraphormerDataLoader(dataset, batch_size=self.batch_size, **dataloader_optimization_params)
-            valid_ids, train_ids = train_test_split(
-                range(len(dataset)), test_size=self.test_size, random_state=self.random_state
-            )
-            return (
-                GraphormerDataLoader(Subset(dataset, train_ids), batch_size=self.batch_size, shuffle=True, **dataloader_optimization_params),
-                GraphormerDataLoader(Subset(dataset, valid_ids), batch_size=self.batch_size, **dataloader_optimization_params),
-            )
-        match self.dataset_type:
-            case DatasetType.HANSEN:
+            if self.dataset_type == DatasetType.HANSEN and self.dataset_regime != DatasetRegime.TEST:
                 if self.test_size is None:
                     raise AttributeError("test_size is not defined for HansenDataset")
                 if self.random_state is None:
                     raise AttributeError("random_state is not defined for HansenDataset")
-                from graphormer.data.datasets.graphormer_dataset import FileDataset
-
-                dataset = FileDataset(self.dataset_path, max_distance=self.max_path_distance)
-                self.num_node_features = dataset.num_node_features
-                self.num_edge_features = dataset.num_edge_features
-                self.num_classes = dataset.num_classes
-
-                if self.dataset_regime == DatasetRegime.TEST:
-                    if len(dataset) <= 6513:
-                        raise ValueError(
-                            f"The {self.dataset_path.stem} benchmark test split starts at row 6513, "
-                            f"but this dataset has only {len(dataset)} rows. Supply the full, ordered dataset."
-                        )
-                    test_loader = GraphormerDataLoader(
-                        dataset[6513:],  # type: ignore
-                        batch_size=self.batch_size,
-                        **dataloader_optimization_params,
-                    )
-                    return test_loader
-
-                test_ids, train_ids = train_test_split(
-                    range(len(dataset[:6513])), test_size=self.test_size, random_state=self.random_state
+            dataset = FileDataset(self.dataset_path, max_distance=self.max_path_distance)
+            self.num_classes = dataset.num_classes
+            cutoff = {
+                DatasetType.HANSEN: 6513, DatasetType.HONMA: 12140,
+                DatasetType.COMBINED: 18652, DatasetType.TOX24: 1014,
+            }.get(self.dataset_type, len(dataset))
+            if self.dataset_regime == DatasetRegime.TEST:
+                train_ids = None
+                valid_ids = range(len(dataset))
+            else:
+                # Preserve the existing convention: test_size is the training fraction.
+                valid_ids, train_ids = train_test_split(
+                    range(min(cutoff, len(dataset))), test_size=self.test_size, random_state=self.random_state
                 )
-                train_loader = GraphormerDataLoader(
-                    Subset(dataset, train_ids),  # type: ignore
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    **dataloader_optimization_params,
-                )
-                test_loader = GraphormerDataLoader(
-                    Subset(dataset, test_ids),  # type: ignore
-                    batch_size=self.batch_size,
-                    **dataloader_optimization_params,
-                )
-
-                return train_loader, test_loader
-
-            case DatasetType.HONMA:
-                from graphormer.data.datasets.graphormer_dataset import FileDataset
-
-                dataset = FileDataset(self.dataset_path, max_distance=self.max_path_distance)
-                self.num_node_features = dataset.num_node_features
-                self.num_edge_features = dataset.num_edge_features
-                self.num_classes = dataset.num_classes
-
-                # len(Honma) = 13730
-                if self.dataset_regime == DatasetRegime.TEST:
-                    if len(dataset) <= 12140:
-                        raise ValueError(
-                            f"The {self.dataset_path.stem} benchmark test split starts at row 12140, "
-                            f"but this dataset has only {len(dataset)} rows. Supply the full, ordered dataset."
-                        )
-                    test_loader = GraphormerDataLoader(
-                        dataset[12140:],  # type: ignore
-                        batch_size=self.batch_size,
-                        **dataloader_optimization_params,
-                    )
-                    return test_loader
-
-                test_ids, train_ids = train_test_split(
-                    range(len(dataset[:12140])), test_size=self.test_size, random_state=self.random_state
-                )
-                train_loader = GraphormerDataLoader(
-                    Subset(dataset, train_ids),  # type: ignore
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    **dataloader_optimization_params,
-                )
-                test_loader = GraphormerDataLoader(
-                    Subset(dataset, test_ids),  # type: ignore
-                    batch_size=self.batch_size,
-                    **dataloader_optimization_params,
-                )
-
-                return train_loader, test_loader
-
-            case DatasetType.COMBINED:
-                from graphormer.data.datasets.graphormer_dataset import FileDataset
-
-                dataset = FileDataset(self.dataset_path, max_distance=self.max_path_distance)
-                self.num_node_features = dataset.num_node_features
-                self.num_edge_features = dataset.num_edge_features
-                self.num_classes = dataset.num_classes
-
-                # The publication test split requires the full, ordered dataset.
-                if self.dataset_regime == DatasetRegime.TEST and len(dataset) <= 18652:
-                    raise ValueError(
-                        "The Combined benchmark test split starts at row 18652, but this dataset "
-                        f"has only {len(dataset)} rows. Use `uv run inference --smiles CCO --name AmesFormer-Pro` for "
-                        "pretrained predictions, or supply the full ordered benchmark dataset."
-                    )
-
-                # len(Combined) = 20242
-                if self.dataset_regime == DatasetRegime.TEST:
-                    test_loader = GraphormerDataLoader(
-                        dataset[18652:],  # type: ignore
-                        batch_size=self.batch_size,
-                        **dataloader_optimization_params,
-                    )
-                    return test_loader
-
-                test_ids, train_ids = train_test_split(
-                    range(len(dataset[:18652])), test_size=self.test_size, random_state=self.random_state
-                )
-                train_loader = GraphormerDataLoader(
-                    Subset(dataset, train_ids),  # type: ignore
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    **dataloader_optimization_params,
-                )
-                test_loader = GraphormerDataLoader(
-                    Subset(dataset, test_ids),  # type: ignore
-                    batch_size=self.batch_size,
-                    **dataloader_optimization_params,
-                )
-
-                return train_loader, test_loader
-
-            case DatasetType.OGBG_MOLPCBA:
-                from graphormer.data.datasets import OGBDataset
-
-                dataset = OGBDataset(str(self.dataset_path.parent), max_distance=self.max_path_distance)
-                self.num_node_features = dataset.num_node_features
-                self.num_edge_features = dataset.num_edge_features
-
-                split_idx = dataset.get_idx_split()
-
-                train_loader = GraphormerDataLoader(
-                    dataset[split_idx["train"]],  # type: ignore
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    **dataloader_optimization_params,
-                )
-                valid_loader = GraphormerDataLoader(
-                    dataset[split_idx["valid"]],  # type: ignore
-                    batch_size=self.batch_size,
-                    **dataloader_optimization_params,
-                )
-
-                return train_loader, valid_loader
-
-            case DatasetType.TOX24:
-                from graphormer.data.datasets.graphormer_dataset import FileDataset
-
-                dataset = FileDataset(self.dataset_path, max_distance=self.max_path_distance)
-                self.num_node_features = dataset.num_node_features
-                self.num_edge_features = dataset.num_edge_features
-                self.num_classes = dataset.num_classes
-
-                # len(Tox24) = 1513, no labels 1014:
-                if self.dataset_regime == DatasetRegime.TEST:
-                    if len(dataset) <= 1014:
-                        raise ValueError(
-                            f"The {self.dataset_path.stem} benchmark test split starts at row 1014, "
-                            f"but this dataset has only {len(dataset)} rows. Supply the full, ordered dataset."
-                        )
-                    test_loader = GraphormerDataLoader(
-                        dataset[1014:],  # type: ignore
-                        batch_size=self.batch_size,
-                        **dataloader_optimization_params,
-                    )
-                    return test_loader
-
-                test_ids, train_ids = train_test_split(
-                    range(len(dataset[:1014])), test_size=self.test_size, random_state=self.random_state
-                )
-                train_loader = GraphormerDataLoader(
-                    Subset(dataset, train_ids),  # type: ignore
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    **dataloader_optimization_params,
-                )
-                test_loader = GraphormerDataLoader(
-                    Subset(dataset, test_ids),  # type: ignore
-                    batch_size=self.batch_size,
-                    **dataloader_optimization_params,
-                )
-
-                return train_loader, test_loader
+        self.num_node_features = dataset.num_node_features
+        self.num_edge_features = dataset.num_edge_features
+        valid_loader = GraphormerDataLoader(
+            Subset(dataset, valid_ids), batch_size=self.batch_size, **dataloader_optimization_params
+        )
+        if train_ids is None:
+            return valid_loader
+        return (
+            GraphormerDataLoader(Subset(dataset, train_ids), batch_size=self.batch_size, shuffle=True, **dataloader_optimization_params),
+            valid_loader,
+        )
 
     def __str__(self) -> str:
         return f"{self.dataset_path} dataset"

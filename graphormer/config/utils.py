@@ -36,8 +36,9 @@ def save_checkpoint(
         os.makedirs(hparams.checkpoint_dir)
 
     checkpoint = {
+        "model_version": 2,
         "epoch": epoch,
-        "hyperparameters": vars(hparams),
+        "hyperparameters": {key: value for key, value in vars(hparams).items() if not key.endswith("_state_dict")},
         "model_state_dict": model.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
         "scheduler_state_dict": None if lr_scheduler is None else lr_scheduler.state_dict(),

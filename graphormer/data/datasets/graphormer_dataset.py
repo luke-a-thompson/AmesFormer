@@ -82,7 +82,7 @@ class FileDataset(GraphormerDataset):
     def __init__(self, path, max_distance: int = 5):
         self.path = Path(path).resolve()
         digest = hashlib.sha256(self.path.read_bytes()).hexdigest()[:16]
-        self.cache_name = f"{self.path.name}-{digest}-v2-paths{max_distance}.pt"
+        self.cache_name = f"{self.path.name}-{digest}-v3-paths{max_distance}.pt"
         super().__init__(str(self.path.parent), max_distance=max_distance)
 
     @property

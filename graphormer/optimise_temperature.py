@@ -1,64 +1,44 @@
-import torch
-from graphormer.config.hparams import HyperparameterConfig
-from graphormer.modules.model import Graphormer
-from graphormer.results import calculate_ece
+"""Calibrate a fixed checkpoint using one cached validation forward pass."""
+
 import numpy as np
+import torch
 from scipy.optimize import minimize_scalar
-from typing import Tuple
+from scipy.special import expit
+
+from graphormer.config.hparams import HyperparameterConfig
+from graphormer.results import calculate_ece
 
 
 class TemperatureOptimizer:
     def __init__(self, hparam_config: HyperparameterConfig):
-        self.device = torch.device(hparam_config.torch_device)
-        self.data_config = hparam_config.data_config()
-        self.model_config = hparam_config.model_config()
-        _, self.validation_loader = self.data_config.build()  # type: ignore
+        device = torch.device(hparam_config.torch_device)
+        data_config = hparam_config.data_config()
+        _, validation_loader = data_config.build()
+        model = (hparam_config.model_config().build(node_feature_dim=data_config.num_node_features, edge_feature_dim=data_config.num_edge_features, output_dim=1).to(device).eval())
+        labels, logits = [], []
+        with torch.inference_mode():
+            for batch in validation_loader:
+                batch = batch.to(device)
+                labels.append(batch.y.flatten().cpu())
+                logits.append(model(batch).flatten().cpu())
+        if not logits:
+            raise ValueError("Temperature calibration requires a nonempty validation set")
+        self.labels = torch.cat(labels).numpy()
+        self.logits = torch.cat(logits).numpy()
 
-    def get_predictions(self, temperature: float) -> Tuple[np.ndarray, np.ndarray]:
-        assert self.data_config.num_node_features is not None
-        assert self.data_config.num_edge_features is not None
-        model: Graphormer = (
-            self.model_config.with_node_feature_dim(self.data_config.num_node_features)
-            .with_edge_feature_dim(self.data_config.num_edge_features)
-            .with_output_dim(1)
-            .with_temperature(temperature)
-            .build()
-            .to(self.device)
-        )
-        model.eval()
-
-        labels = []
-        preds = []
-
-        for batch in self.validation_loader:
-            batch.to(self.device)
-            y = batch.y.to(self.device)
-
-            with torch.no_grad():
-                output = model(batch)
-
-            batch_eval_preds = torch.sigmoid(output/temperature).cpu().numpy()
-            batch_eval_labels = y.cpu().numpy()
-            labels.extend(batch_eval_labels)
-            preds.extend(batch_eval_preds)
-
-        return np.array(labels), np.array(preds)
+    def get_predictions(self, temperature: float) -> tuple[np.ndarray, np.ndarray]:
+        if not np.isfinite(temperature) or temperature <= 0:
+            raise ValueError("temperature must be finite and positive")
+        return self.labels, expit(self.logits / temperature)
 
     def objective(self, temperature: float) -> float:
-        labels, preds = self.get_predictions(temperature)
-        return calculate_ece(labels, preds)
+        return calculate_ece(*self.get_predictions(temperature))
 
     def optimize(self, max_iter: int = 50) -> float:
         result = minimize_scalar(self.objective, bounds=(0.1, 5.0), method="bounded", options={"maxiter": max_iter})
-
-        optimal_temperature = result.x
-        optimal_ece = result.fun
-
-        print(f"Optimal Temperature: {optimal_temperature:.4f}, ECE: {optimal_ece:.4f}")
-
-        return optimal_temperature
+        print(f"Optimal Temperature: {result.x:.4f}, ECE: {result.fun:.4f}")
+        return float(result.x)
 
 
 def optimise_temperature(hparam_config: HyperparameterConfig, max_iter: int = 50) -> float:
-    optimizer = TemperatureOptimizer(hparam_config)
-    return optimizer.optimize(max_iter)
+    return TemperatureOptimizer(hparam_config).optimize(max_iter)

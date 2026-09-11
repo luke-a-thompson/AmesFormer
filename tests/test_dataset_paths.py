@@ -38,13 +38,15 @@ def test_cache_tracks_contents_and_path_distance(tmp_path, table):
     assert first.processed_paths != changed.processed_paths
 
 
-@pytest.mark.parametrize("name,start", [("Combined", 18652), ("Honma_New", 12140), ("Hansen_New", 6513), ("tox24_all", 1014)])
-def test_benchmark_split_is_preserved(tmp_path, table, name, start):
-    path = tmp_path / f"{name}.csv"
-    table.to_csv(path, index=False)
-    config = DataConfig(str(path), DatasetRegime.TEST, 2, 3).with_num_workers(0).with_test_size(0.8).with_random_state(42)
-    with pytest.raises(ValueError, match=f"starts at row {start}"):
-        config.build()
+@pytest.mark.parametrize("name", ["Combined", "Honma_New", "Hansen_New", "tox24_all", "molecules"])
+@pytest.mark.parametrize("extension", ["csv", "xlsx"])
+def test_inference_uses_all_rows_regardless_of_filename(tmp_path, table, name, extension):
+    path = tmp_path / f"{name}.{extension}"
+    getattr(table, f"to_{'excel' if extension == 'xlsx' else 'csv'}")(path, index=False)
+    config = DataConfig(str(path), DatasetRegime.TEST, 3, 3).with_num_workers(0)
+    loader = config.build()
+    assert list(loader.dataset.indices) == list(range(len(table)))
+    assert [label for batch in loader for label in batch.y.tolist()] == table.ames.tolist()
 
 
 def test_missing_columns(tmp_path):
@@ -57,7 +59,7 @@ def test_missing_columns(tmp_path):
 def test_train_and_inference_with_file(tmp_path, table, monkeypatch):
     from graphormer import cli
 
-    path = tmp_path / "molecules.csv"
+    path = tmp_path / "Combined.csv"
     table.to_csv(path, index=False)
     runner = CliRunner()
     result = runner.invoke(train, [

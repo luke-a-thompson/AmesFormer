@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use AmesFormer, please cite the published paper below."
+title: AmesFormer
+type: software
+authors:
+  - family-names: Thompson
+    given-names: Luke A.
+  - family-names: Evans
+    given-names: Josiah G.
+repository-code: "https://github.com/luke-a-thompson/AmesFormer"
+preferred-citation:
+  type: article
+  title: "AmesFormer: State-of-the-Art Mutagenicity Prediction with Graph Transformers"
+  authors:
+    - family-names: Thompson
+      given-names: Luke A.
+    - family-names: Evans
+      given-names: Josiah G.
+    - family-names: Matthews
+      given-names: Slade T.
+  journal: Chemical Research in Toxicology
+  year: 2025
+  volume: 38
+  issue: 7
+  start: 1167
+  end: 1182
+  doi: "10.1021/acs.chemrestox.4c00466"
+  url: "https://pubs.acs.org/crtoec/article/38/7/1167/3764632/AmesFormer-State-of-the-Art-Mutagenicity"

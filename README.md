@@ -1,6 +1,6 @@
 # AmesFormer
 
-Graph transformer for mutagenicity prediction. [Paper](https://chemrxiv.org/engage/api-gateway/chemrxiv/assets/orp/resource/item/66fd0cd5cec5d6c142e23a70/original/amesformer-a-graph-transformer-neural-network-for-mutagenicity-prediction.pdf).
+Graph transformer for mutagenicity prediction. [Paper](https://pubs.acs.org/crtoec/article/38/7/1167/3764632/AmesFormer-State-of-the-Art-Mutagenicity).
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run from the repository root:
 
@@ -53,3 +53,21 @@ uv sync --extra cuda --extra rust    # CUDA
 ```
 
 See [gnn-tools](gnn-tools/README.md) for details.
+
+## Citation
+
+If you use AmesFormer, please cite the published paper:
+
+```bibtex
+@article{thompson2025amesformer,
+  author = {Thompson, Luke A. and Evans, Josiah G. and Matthews, Slade T.},
+  title = {{AmesFormer}: State-of-the-Art Mutagenicity Prediction with Graph Transformers},
+  journal = {Chemical Research in Toxicology},
+  year = {2025},
+  volume = {38},
+  number = {7},
+  pages = {1167--1182},
+  doi = {10.1021/acs.chemrestox.4c00466},
+  url = {https://doi.org/10.1021/acs.chemrestox.4c00466}
+}
+```

@@ -1,6 +1,6 @@
 from typing import Tuple
 
-import gnn_tools
+from graphormer.shortest_paths import shortest_paths
 import torch
 
 
@@ -12,7 +12,7 @@ def shortest_path_distance(
     # Insert VNODE, disconnected to allow physical paths between nodes in SPD
     edges.insert(0, (0, 0))
 
-    node_paths, edge_paths = gnn_tools.shortest_paths(edges, max_distance)  # type: ignore
+    node_paths, edge_paths = shortest_paths(edges, max_distance)  # type: ignore
     # (num_nodes, num_nodes, max_path_len)
     node_paths_tensor = torch.Tensor(node_paths).int()
     edge_paths_tensor = torch.Tensor(edge_paths).int()

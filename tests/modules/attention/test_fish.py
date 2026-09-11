@@ -35,7 +35,7 @@ class TestFishGroup:
 
         data = ModelData(x, torch.zeros(3), torch.zeros(3), torch.zeros(3), torch.zeros(3), device)
         data.normalized_input = data.x
-        data.attention_prior = torch.zeros(batch_size, num_nodes, num_nodes)
+        data.attention_prior = torch.zeros(batch_size, 1, num_nodes, num_nodes)
         data: ModelData = fish(data)
         assert data.attention_output is not None
         assert data.attention_output.shape == (batch_size, num_nodes, embedding_dim)

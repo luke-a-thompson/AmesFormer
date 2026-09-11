@@ -5,7 +5,6 @@ from graphormer.config.data import DataConfig
 from graphormer.config.hparams import HyperparameterConfig, hyperparameters
 from graphormer.config.options import (
     AttentionType,
-    DatasetType,
     DatasetRegime,
     LossReductionType,
     OptimizerType,
@@ -16,7 +15,7 @@ from graphormer.config.options import (
 )
 from optuna.trial import Trial
 
-from graphormer.utils import create_composite_decorator, configure
+from graphormer.utils import create_composite_decorator, configure, resolve_device
 
 tuning_hyperparameters = create_composite_decorator(
     hyperparameters,
@@ -90,12 +89,11 @@ class TuningHyperparameterConfig:
         # Tuning Parameters
         study_name: str,
         random_state: int = int(random() * 1e9),
-        torch_device: str = "cuda",
+        torch_device: str = "auto",
         checkpoint_dir: str = "optuna_models",
         n_trials: Optional[int] = None,
         # Data Parameters
-        datadir: Optional[str] = None,
-        dataset: Optional[DatasetType] = None,
+        dataset: Optional[str] = None,
         dataset_regime: Optional[DatasetRegime] = None,
         node_feature_dim: Optional[int] = None,
         edge_feature_dim: Optional[int] = None,
@@ -208,9 +206,8 @@ class TuningHyperparameterConfig:
         self.n_trials = n_trials
         self.study_name = study_name
         self.random_state = random_state
-        self.torch_device = torch_device
+        self.torch_device = resolve_device(torch_device)
         self.checkpoint_dir = checkpoint_dir
-        self.datadir = datadir
         self.dataset = dataset
         self.dataset_regime = dataset_regime
         self.node_feature_dim = node_feature_dim
@@ -517,7 +514,6 @@ class TuningHyperparameterConfig:
             )
 
         return HyperparameterConfig(
-            datadir=self.datadir,
             dataset=self.dataset,
             dataset_regime=self.dataset_regime,
             random_state=self.random_state,
@@ -598,12 +594,10 @@ class TuningHyperparameterConfig:
             raise AttributeError("dataset_regime not defined for DataConfig")
         if self.batch_size is None:
             raise AttributeError("batch_size not defined for DataConfig")
-        if self.datadir is None:
-            raise AttributeError("datadir not defined for DataConfig")
         if self.max_path_distance is None:
             raise AttributeError("max_path_distance not defined for DataConfig")
 
-        config = DataConfig(self.dataset, self.dataset_regime, self.batch_size, self.datadir, self.max_path_distance)
+        config = DataConfig(self.dataset, self.dataset_regime, self.batch_size, self.max_path_distance)
 
         if self.test_size is not None:
             config = config.with_test_size(self.test_size)

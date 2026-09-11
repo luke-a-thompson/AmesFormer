@@ -51,10 +51,7 @@ class GraphormerCollater(Collater):
         assert data.edge_paths is not None
         assert data.degrees is not None
         x = data.x.float()
-        edge_index = data.edge_index
-        edge_attr = data.edge_attr.float()
         node_paths = data.node_paths
-        edge_paths = data.edge_paths
 
         degrees = data.degrees
         ptr = data.ptr
@@ -65,13 +62,9 @@ class GraphormerCollater(Collater):
         edge_paths_subgraphs = []
         degree_subgraphs = []
         subgraph_idxs = torch.stack([ptr[:-1], ptr[1:]], dim=1)
-        subgraph_sq_ptr = torch.cat(
-            [torch.tensor([0]).to(x.device), (subgraph_idxs[:, 1] - subgraph_idxs[:, 0]).square().cumsum(dim=0)]
-        )
-        subgraph_idxs_sq = torch.stack([subgraph_sq_ptr[:-1], subgraph_sq_ptr[1:]], dim=1)
         max_nodes = 0
         path_length = node_paths.shape[-1]
-        for idx_range, idx_range_sq in zip(subgraph_idxs.tolist(), subgraph_idxs_sq.tolist()):
+        for graph, idx_range in zip(batch, subgraph_idxs.tolist()):
             subgraph = x[idx_range[0] : idx_range[1]]
             num_nodes = idx_range[1] - idx_range[0]
             if num_nodes > max_nodes:
@@ -80,19 +73,14 @@ class GraphormerCollater(Collater):
             node_subgraphs.append(subgraph)
             degree_subgraphs.append(degrees[idx_range[0] : idx_range[1], :])
 
-            start_edge_index = (edge_index[0] < idx_range[0]).sum()
-            stop_edge_index = (edge_index[0] < idx_range[1]).sum()
-
-            edge_attr_subgraphs.append(edge_attr[start_edge_index:stop_edge_index, :])
-            assert idx_range_sq[1] <= len(
-                node_paths
-            ), f"{idx_range_sq[1]}, {len(node_paths)}, {num_nodes}, {ptr}, {data.x}"
-            node_paths_subgraphs.append(
-                node_paths[idx_range_sq[0] : idx_range_sq[1]].reshape(num_nodes, num_nodes, path_length)
-            )
-            edge_paths_subgraphs.append(
-                edge_paths[idx_range_sq[0] : idx_range_sq[1]].reshape(num_nodes, num_nodes, path_length)
-            )
+            # Virtual edge attributes have their own boundaries, independent of edge_index.
+            edge_attr_subgraphs.append(graph.edge_attr.float())
+            # Legacy preprocessing stores auxiliary paths beyond num_nodes**2.
+            # Apply the single-graph slicing convention separately to each graph;
+            # cumulative num_nodes**2 offsets mix paths from different molecules.
+            num_paths = num_nodes**2
+            node_paths_subgraphs.append(graph.node_paths[:num_paths].reshape(num_nodes, num_nodes, path_length))
+            edge_paths_subgraphs.append(graph.edge_paths[:num_paths].reshape(num_nodes, num_nodes, path_length))
         target_shape = (max_nodes, max_nodes, path_length)
 
         node_subgraphs_padded = []

@@ -57,10 +57,12 @@ class TestEdgeEncodingGroup:
         edge_paths = edge_paths.long()
 
         device = torch.device("cpu")
-        data = ModelData(torch.zeros(3), torch.zeros(3), torch.zeros(3), torch.zeros(3), edge_paths, device)
+        data = ModelData(torch.zeros(3), torch.zeros(3), torch.zeros(3), torch.zeros(3), edge_paths.reshape(batch_size, num_nodes, num_nodes, max_path_distance), device)
         data.edge_embedding = edge_embedding
         data: ModelData = edge_encoding(data)
         assert data.edge_encoding is not None
+        assert data.edge_encoding.shape == (batch_size, num_nodes, num_nodes)
+        data.edge_encoding = data.edge_encoding.flatten(1, 2)
 
         assert data.edge_encoding.shape == (batch_size, num_nodes**2)
         # encoding in batch 0 of node 0 -> 0 by edges

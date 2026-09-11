@@ -52,11 +52,15 @@ class GraphormerMultiHeadAttention(nn.Module):
         # d: head_size
         # (batch_size, num_heads, max_subgraph_size, max_subgraph_size)
         a = torch.einsum("bnhd,bmhd->bhnm", q_x, k_x)
-        pad_mask = torch.all(a == 0, dim=-1)
+        node_pad_mask = data.x_pad_mask
+        if node_pad_mask is None:
+            node_pad_mask = (x == 0).all(dim=-1)
         a = a * self.scale
 
         a = a + prior
-        a[pad_mask] = float("-inf")
+        # Padded keys must not participate in softmax for real query nodes.
+        a = a.masked_fill(node_pad_mask[:, None, None, :], float("-inf"))
+        a = a.masked_fill(node_pad_mask[:, None, :, None], float("-inf"))
         a = torch.softmax(a, dim=-1)
         a = torch.nan_to_num(a)
         # b: batch_size

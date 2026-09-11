@@ -1,4 +1,4 @@
-import gnn_tools
+from graphormer import shortest_paths as gnn_tools
 
 
 class TestShortestPathsGroup:

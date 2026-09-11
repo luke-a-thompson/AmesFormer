@@ -14,4 +14,4 @@ class Output(nn.Module):
     def forward(self, data: ModelData) -> torch.Tensor:
         vnode_outputs = data.x[:, 0, :]
         output = self.out(vnode_outputs)
-        return output.squeeze()
+        return output.squeeze(-1)

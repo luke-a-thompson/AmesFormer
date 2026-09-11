@@ -1,44 +1,55 @@
 # AmesFormer
-AmesFormer: [A graph transformer neural network for state-of-the-art mutagenicity prediction](https://chemrxiv.org/engage/api-gateway/chemrxiv/assets/orp/resource/item/66fd0cd5cec5d6c142e23a70/original/amesformer-a-graph-transformer-neural-network-for-mutagenicity-prediction.pdf).
 
-## Key Contributions
-* We achieve state-of-the-art mutagenicity prediction on a standardised Ames dataset.
-* We provide a large, clean open-source dataset of Ames mutagenicity.
+Graph transformer for mutagenicity prediction. [Paper](https://chemrxiv.org/engage/api-gateway/chemrxiv/assets/orp/resource/item/66fd0cd5cec5d6c142e23a70/original/amesformer-a-graph-transformer-neural-network-for-mutagenicity-prediction.pdf).
 
-## Understanding this Repository
-* `data/` is empty, users should place their own dataset here, or use our provided `combined.csv` dataset.
-* `data_cleaning/` contains the code used to create `combined.csv` from the individual raw datasets and code to generate some of our results figures.
-    * Our Ames dataset, excluding the proprietary "Honma" components, is available in `datacleaning/Combined_2s_as_0s_publication.csv`
-* `gnn-tools/` is our custom Rust library for calculating the shortest path distance (SPD) for the edge and spatial encoding modules.
-* `graphormer/` contains the AmesFormer model, in essence a full reimplimentation of Graphormer in PyTorch Geometric.
-* `hparams/` contains the hyperparameter configurations we used in our experiments. **The one used for our final model for which results are reported is `hparams/best_32_1_5e4.toml`**.
-* `pretrained_models/` contains the saved model checkpoints for our final AmesFormer model.
-* `tests/` contains unit tests for attention, encodings, etc.
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run from the repository root:
 
-# Installation
-## Requirements
-This repository includes some tools which are built using [Rust](https://www.rust-lang.org/) and create python bindings with [Maturin](https://github.com/PyO3/maturin).  These must both be installed in order to build from source.
+```sh
+uv sync                  # CPU
+uv sync --extra cuda     # Optional: NVIDIA CUDA
+```
 
-## With Poetry
-Installation is simplest with [Poetry](https://python-poetry.org/docs/). Run:
-- `poetry lock --no-update` to gather the required information and populate caches
-- `poetry install` to furnish a virtual environment.
-- `poetry run inference --dataset Combined --name AmesFormer-Pro` to run inference our best model.
-- `poetry run train --dataset Combined` to begin training the model.  See `poetry run train --help` for options.
+Predict with the bundled AmesFormer-Pro model:
 
-# Visualization
-## Requirements
-Visualization is provided with `tensorboard`.  To see local readouts during training, first install `tensorboard` on your system.  We recommend via [pipx](https://github.com/pypa/pipx):
-- `pipx install tensorboard`
+```sh
+uv run --no-sync inference --smiles 'CCO' --smiles 'c1ccccc1' --name AmesFormer-Pro
+```
 
-## Local Server
-You can start a local tensorboard server via the following command:
-- `tensorboard --logdir=<logdir>`, where `<logdir>` is the path to the tensorboard logs.  By default, these are created in the `runs` folder.
+Run inference on a dataset's test split:
 
+```sh
+uv run --no-sync inference --dataset data/raw/Combined.xlsx --name AmesFormer-Pro
+```
 
-## Layers of Graphormer Implemented
-1. Centrality Encoding
-2. Spatial Encoding
-3. Edge Encoding
-4. Multi-Head Self-Attention
-5. VNODE global attention
+- **Model:** inference requires `--name` or `--checkpoint`.
+- **Dataset:** a CSV/XLSX file with `smiles` and `ames` (0/1) columns.
+- **Splits:** files named `Combined`, `Honma_New`, `Hansen_New`, or `tox24_all` use benchmark splits. Other files use all rows for inference and a random train/validation split for training.
+- **Combined:** benchmark inference needs the full, ordered dataset; the bundled workbook is too small.
+- **OGB:** the legacy loader accepts an `ogbg_molpcba` directory, but its multitask labels are not supported by the binary AmesFormer training/inference pipeline.
+- **Cache:** graphs are cached automatically in `.amesformer-cache/` beside the dataset.
+
+Train on the bundled dataset:
+
+```sh
+uv run --no-sync train --dataset data/raw/Combined.xlsx --name my-model
+```
+
+`--no-sync` preserves your installed CUDA choice. Use a new `--name` for a fresh training run. See `inference --help` or `train --help` via `uv run --no-sync` for options; training defaults are in [default_hparams.toml](default_hparams.toml).
+
+## Development
+
+```sh
+uv run --no-sync pytest
+uv run --no-sync tensorboard --logdir runs
+```
+
+## Optional Rust acceleration
+
+Python shortest paths are fast enough for typical molecules. For faster preprocessing, install [Rust](https://rustup.rs/) and a C compiler, then:
+
+```sh
+uv sync --extra rust                 # CPU
+uv sync --extra cuda --extra rust    # CUDA
+```
+
+See [gnn-tools](gnn-tools/README.md) for details.

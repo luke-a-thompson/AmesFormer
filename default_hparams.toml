@@ -4,12 +4,12 @@
 # Global
 name = "best"
 random_state = 42
-torch_device = "cuda"
+torch_device = "auto"
 checkpt_save_interval = 1
 epochs = 100
 
 # Dataset
-dataset = "honma"
+dataset = "data/raw/Combined.xlsx"
 batch_size = 32
 accumulation_steps = 1
 max_path_distance = 5

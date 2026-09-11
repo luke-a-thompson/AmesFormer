@@ -27,7 +27,8 @@ def inference_model(
         data_config = hparam_config.data_config()
     model_config = hparam_config.model_config()
 
-    inference_loader = data_config.build()  # type: ignore
+    if inference_loader is None:
+        inference_loader = data_config.build()  # type: ignore
 
     assert hparam_config.batch_size is not None
     assert data_config.num_node_features is not None
@@ -48,9 +49,9 @@ def inference_model(
     if mc_samples is not None and mc_dropout_rate is not None:
         mc_results = []
         model.enable_dropout(mc_dropout_rate)
-        labels = []
-        logits = []
         for mc_sample in tqdm(range(mc_samples), desc="MC Dropout Inference", unit="mc_sample"):
+            labels = []
+            logits = []
 
             for batch in inference_loader:  # type: ignore
                 batch.to(device)

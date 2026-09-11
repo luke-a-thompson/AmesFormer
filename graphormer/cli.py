@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import click
 from typing import Optional
 from optuna.pruners import HyperbandPruner
@@ -164,10 +167,32 @@ def tune(**kwargs):
 
 @click.command()
 @hyperparameters
-@click.option("--checkpoint_dir", default="pretrained_models")
-@click.option("--mc_samples", default=None, type=click.INT)
-@click.option("--mc_dropout_rate", default=0.1, type=click.FLOAT)
-def inference(mc_samples: Optional[int], mc_dropout_rate: Optional[float], **kwargs):
+@click.option("--smiles", multiple=True, help="Predict supplied SMILES instead of evaluating a dataset; repeat for multiple molecules.")
+@click.option("--checkpoint", type=click.Path(exists=True, dir_okay=False, path_type=Path), help="Explicit checkpoint file, as an alternative to --name.")
+@click.option("--mc_samples", default=None, type=click.IntRange(min=1))
+@click.option("--mc_dropout_rate", default=0.1, type=click.FloatRange(min=0, max=1))
+@click.pass_context
+def inference(ctx, smiles, checkpoint, mc_samples: Optional[int], mc_dropout_rate: Optional[float], **kwargs):
+    """Predict SMILES or evaluate a dataset; select a model with --name or --checkpoint."""
+    if checkpoint is None and (
+        ctx.get_parameter_source("name") != click.core.ParameterSource.COMMANDLINE or not kwargs["name"]
+    ):
+        raise click.MissingParameter(
+            message="Select a model explicitly with --name (or --checkpoint).",
+            param_hint="--name",
+            param_type="option",
+        )
+    if smiles:
+        if ctx.get_parameter_source("dataset") == click.core.ParameterSource.COMMANDLINE:
+            raise click.UsageError("Use either --smiles or --dataset, not both.")
+        if mc_samples is not None:
+            raise click.UsageError("--mc_samples is only supported for dataset evaluation.")
+        if checkpoint is None:
+            checkpoint = Path(kwargs["checkpoint_dir"]) / f"{kwargs['name']}.pt"
+        _predict_json(smiles, checkpoint, kwargs["torch_device"], kwargs["batch_size"])
+        return
+    if checkpoint is not None:
+        kwargs.update(name=checkpoint.stem, checkpoint_dir=str(checkpoint.parent))
     hparam_config = HyperparameterConfig(**kwargs)
     hparam_config.load_for_inference()
     hparam_config.dataset_regime = DatasetRegime.TEST
@@ -197,7 +222,7 @@ def estimate_noise_scale(**kwargs):
     torch.manual_seed(hparam_config.random_state)
 
 
-# # Example: poetry run analyze --models results,results2,results3
+# # Example: uv run analyze --models results,results2,results3
 # @click.command()
 # @click.option("--bac_csv_path", type=click.Path(exists=True), default="results/MC_BACs.csv")
 # @click.option("--models", type=click.STRING, callback=lambda ctx, param, value: value.split(","), required=True)
@@ -205,3 +230,13 @@ def estimate_noise_scale(**kwargs):
 # def analyze(bac_csv_path: Path, models: List[str], alpha: float):
 #     assert len(models) >= 3, "The Friedman test requires at least 3 models to compare."
 #     friedman_from_bac_csv(bac_csv_path, models, alpha)
+
+
+def _predict_json(smiles, checkpoint, torch_device, batch_size):
+    from graphormer.predict import predict_smiles
+
+    try:
+        results = predict_smiles(list(smiles), checkpoint, torch_device, batch_size)
+    except ValueError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(json.dumps(results, indent=2))

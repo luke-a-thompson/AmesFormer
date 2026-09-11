@@ -14,14 +14,13 @@ from graphormer.config.options import (
     AttentionType,
     LossFunction,
     LossReductionType,
-    DatasetType,
     DatasetRegime,
     ResidualType,
     SchedulerType,
     OptimizerType,
     NormType,
 )
-from graphormer.utils import create_composite_decorator, configure
+from graphormer.utils import create_composite_decorator, configure, resolve_device
 
 
 hyperparameters = create_composite_decorator(
@@ -35,9 +34,8 @@ hyperparameters = create_composite_decorator(
         callback=configure,
         default="default_hparams.toml",
     ),
-    click.option("--datadir", default="data"),
     click.option("--logdir", default="runs"),
-    click.option("--dataset", type=click.Choice(DatasetType, case_sensitive=False), default=DatasetType.HONMA),  # type: ignore
+    click.option("--dataset", type=click.Path(exists=True), default="data/raw/Combined.xlsx", help="Dataset CSV/XLSX file with smiles and ames columns, or an ogbg_molpcba directory."),
     click.option(
         "--dataset_regime", type=click.Choice(DatasetRegime, case_sensitive=False), default=DatasetRegime.TRAIN
     ),  # type: ignore
@@ -49,13 +47,13 @@ hyperparameters = create_composite_decorator(
     click.option("--heads_by_layer", multiple=True, default=[], type=click.INT),
     click.option("--max_in_degree", default=5),
     click.option("--max_out_degree", default=5),
-    click.option("--max_path_distance", default=5),
+    click.option("--max_path_distance", default=5, type=click.IntRange(min=2, max=64)),
     click.option(
         "--residual_type", type=click.Choice(ResidualType, case_sensitive=False), default=ResidualType.PRENORM
     ),  # type: ignore
     click.option("--test_size", default=0.8),
     click.option("--random_state", default=None, type=click.INT),
-    click.option("--batch_size", default=16),
+    click.option("--batch_size", default=16, type=click.IntRange(min=1)),
     click.option("--lr", default=3e-4),
     click.option("--b1", default=0.9),
     click.option("--b2", default=0.999),
@@ -65,7 +63,7 @@ hyperparameters = create_composite_decorator(
     click.option("--momentum", default=0.0),
     click.option("--dampening", default=0.0),
     click.option("--clip_grad_norm", default=5.0),
-    click.option("--torch_device", default="cuda"),
+    click.option("--torch_device", default="auto", help="Device: auto, cpu, cuda, or cuda:N"),
     click.option("--epochs", default=10),
     click.option("--lr_power", default=0.5),
     click.option(
@@ -128,11 +126,10 @@ class HyperparameterConfig:
         # Global Parameters
         name: Optional[str] = None,
         random_state: int = int(random() * 1e9),
-        torch_device: str = "cuda",
+        torch_device: str = "auto",
         best_loss: float = float("inf"),
         # Data Parameters
-        datadir: Optional[str] = None,
-        dataset: Optional[DatasetType] = None,
+        dataset: Optional[str] = None,
         dataset_regime: Optional[DatasetRegime] = None,
         batch_size: Optional[int] = None,
         max_path_distance: Optional[int] = None,
@@ -216,10 +213,9 @@ class HyperparameterConfig:
             name = f"model_{datetime.datetime.now().strftime("%d-%m-%y-%H-%M")}"
         self.name = name
         self.random_state = random_state
-        self.torch_device = torch_device
+        self.torch_device = resolve_device(torch_device)
         self.best_loss = best_loss
         # Data Parameters
-        self.datadir = datadir
         self.dataset = dataset
         self.dataset_regime = dataset_regime
         self.batch_size = batch_size
@@ -305,18 +301,16 @@ class HyperparameterConfig:
         self.loss_state_dict = None
 
     def data_config(self) -> DataConfig:
-        if self.dataset is None or self.dataset not in DatasetType:
+        if self.dataset is None:
             raise AttributeError(f"dataset '{self.dataset}' not defined for DataConfig")
         if self.dataset_regime is None or self.dataset_regime not in DatasetRegime:
             raise AttributeError(f"dataset_regime '{self.dataset_regime}' not defined for DataConfig")
         if self.batch_size is None:
             raise AttributeError("batch_size not defined for DataConfig")
-        if self.datadir is None:
-            raise AttributeError("datadir is not defined for DataConfig")
         if self.max_path_distance is None:
             raise AttributeError("max_path_distance is not defined for DataConfig")
 
-        config = DataConfig(self.dataset, self.dataset_regime, self.batch_size, self.datadir, self.max_path_distance)
+        config = DataConfig(self.dataset, self.dataset_regime, self.batch_size, self.max_path_distance)
 
         if self.test_size is not None:
             config = config.with_test_size(self.test_size)
@@ -528,7 +522,7 @@ class HyperparameterConfig:
 
         hparams: Dict[str, Any] = checkpoint["hyperparameters"]
         for key, value in hparams.items():
-            if hasattr(self, key):
+            if hasattr(self, key) and key not in {"torch_device", "dataset"}:
                 setattr(self, key, value)
         self.model_state_dict = checkpoint["model_state_dict"]
         self.optimizer_state_dict = checkpoint["optimizer_state_dict"]
@@ -539,7 +533,7 @@ class HyperparameterConfig:
         del checkpoint
         return self
 
-    def load_for_inference(self) -> Self:
+    def load_for_inference(self, verbose: bool = True) -> Self:
         device = torch.device(self.torch_device)
 
         checkpoint_path = f"{self.checkpoint_dir}/{self.name}.pt"
@@ -548,10 +542,14 @@ class HyperparameterConfig:
         checkpoint = torch.load(checkpoint_path, map_location=device)
 
         hparams: Dict[str, Any] = checkpoint["hyperparameters"]
+        runtime_keys = {
+            "torch_device", "name", "checkpoint_dir", "dataset", "batch_size", "num_workers", "prefetch_factor"
+        }
         for key, value in hparams.items():
-            if hasattr(self, key):
+            if hasattr(self, key) and (key not in runtime_keys or getattr(self, key) is None):
                 setattr(self, key, value)
         self.model_state_dict = checkpoint["model_state_dict"]
-        print(f"Successfully loaded model {self.name} for inference")
+        if verbose:
+            print(f"Successfully loaded model {self.name} for inference")
         del checkpoint
         return self

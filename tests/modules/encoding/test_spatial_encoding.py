@@ -26,10 +26,12 @@ class TestSpatialEncodingGroup:
         paths[1][14] = torch.Tensor([5.0, 4.0, 3.0, 2.0, -1.0])
 
         device = torch.device("cpu")
-        data = ModelData(torch.zeros(3), torch.zeros(3), torch.zeros(3), paths, torch.zeros(3), device)
+        data = ModelData(torch.zeros(3), torch.zeros(3), torch.zeros(3), paths.reshape(batch_size, 6, 6, max_path_length), torch.zeros(3), device)
 
         data: ModelData = spatial_encoding(data)
         assert data.spatial_encoding is not None
+        assert data.spatial_encoding.shape == (batch_size, 6, 6)
+        data.spatial_encoding = data.spatial_encoding.flatten(1, 2)
 
         assert data.spatial_encoding.shape == (batch_size, num_pairwise_paths)
         assert (data.spatial_encoding[0, :6] == spatial_encoding.t1).all()

@@ -32,3 +32,10 @@ def configure(ctx, param, filename):
     with open(filename, "rb") as f:
         config = tomllib.load(f)
     ctx.default_map = config
+
+
+def resolve_device(device: str) -> str:
+    """Choose a usable default while respecting an explicit device request."""
+    if device == "auto":
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    return device

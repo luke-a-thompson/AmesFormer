@@ -32,7 +32,7 @@ class TestMultiHeadAttentionGroup:
         device = torch.device("cpu")
         data = ModelData(x, torch.zeros(3), torch.zeros(3), torch.zeros(3), torch.zeros(3), device)
         data.normalized_input = x
-        data.attention_prior = torch.zeros(batch_size, num_nodes, num_nodes)
+        data.attention_prior = torch.zeros(batch_size, 1, num_nodes, num_nodes)
         data = mha.forward(data)
         assert data.attention_output is not None
         ref_mha_out = ref_mha.forward(x, x, x, need_weights=False)[0]
@@ -74,7 +74,7 @@ class TestMultiHeadAttentionGroup:
         device = torch.device("cpu")
         data = ModelData(x, torch.zeros(3), torch.zeros(3), torch.zeros(3), torch.zeros(3), device)
         data.normalized_input = x
-        data.attention_prior = torch.zeros(batch_size, max_num_nodes, max_num_nodes)
+        data.attention_prior = torch.zeros(batch_size, 1, max_num_nodes, max_num_nodes)
         data = mha.forward(data)
         assert data.attention_output is not None
         pad_mask = (x == 0.0).all(dim=-1)

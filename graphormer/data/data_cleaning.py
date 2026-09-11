@@ -12,7 +12,7 @@ def check_smiles_and_label(smiles, label) -> Optional[str]:
         return f"WARN: No label for {smiles}, skipped"
 
     mol = Chem.MolFromSmiles(smiles)
-    if mol is None:
+    if mol is None or mol.GetNumAtoms() == 0:
         return f"WARN: Invalid SMILES {smiles}, skipped"
 
     return None

@@ -1,0 +1,23 @@
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        backend: [python, rust]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install default environment
+        if: matrix.backend == 'python'
+        run: uv sync --locked
+      - name: Install Rust environment
+        if: matrix.backend == 'rust'
+        run: uv sync --locked --extra rust
+      - name: Run tests
+        run: uv run --no-sync pytest
+      - name: Run pretrained model
+        run: uv run --no-sync inference --smiles CCO --name AmesFormer-Pro --torch_device cpu
